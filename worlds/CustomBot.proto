@@ -1,0 +1,286 @@
+#VRML_SIM R2025b utf8
+# license: Apache License 2.0
+# license url: https://www.apache.org/licenses/LICENSE-2.0
+
+PROTO CustomBot [
+  field SFVec3f    translation     0 0 0                 # Is `Pose.translation`.
+  field SFRotation rotation        0 1 0 0               # Is `Pose.rotation`.
+  field SFString   name            "my_robot"            # Is `Solid.name`.
+  field SFString   controller      "<generic>"           # Is `Robot.controller`.
+  field MFString   controllerArgs  []                    # Is `Robot.controllerArgs`.
+  field SFString   customData      ""                    # Is `Robot.customData`.
+  field SFBool     supervisor      FALSE                 # Is `Robot.supervisor`.
+  field SFBool     synchronization TRUE                  # Is `Robot.synchronization`.
+]
+{
+  Robot {
+    translation IS translation
+    rotation IS rotation
+    name IS name
+    controller IS controller
+    controllerArgs IS controllerArgs
+    customData IS customData
+    supervisor IS supervisor
+    synchronization IS synchronization
+
+    children [
+      HingeJoint {
+        jointParameters HingeJointParameters {
+          axis 0 1 0
+          anchor 0.0505 0 0.025
+        }
+        device [
+          RotationalMotor {
+            name "left front wheel motor"
+          }
+        ]
+        endPoint Solid {
+          translation 0.0505 0.075 0.025
+          children [
+            DEF WHEEL Transform {
+              rotation 1 0 0 1.5707996938995747
+              children [
+                Shape {
+                  appearance PBRAppearance {
+                    baseColor 1 0 0
+                    roughness 1
+                    metalness 0
+                  }
+                  geometry Cylinder {
+                    height 0.025
+                    radius 0.032
+                  }
+                }
+              ]
+            }
+          ]
+          name "left front wheel"
+          boundingObject USE WHEEL
+          physics Physics {
+          }
+        }
+      }
+      HingeJoint {
+        jointParameters HingeJointParameters {
+          axis 0 1 0
+          anchor 0.0505 0 0.025
+        }
+        device [
+          RotationalMotor {
+            name "right front wheel motor"
+          }
+        ]
+        endPoint Solid {
+          translation 0.0505 -0.075 0.025
+          children [
+            USE WHEEL
+          ]
+          name "right front wheel"
+          boundingObject USE WHEEL
+          physics Physics {
+          }
+        }
+      }
+      HingeJoint {
+        jointParameters HingeJointParameters {
+          axis 0 1 0
+          anchor -0.0795 0 0.025
+        }
+        device [
+          RotationalMotor {
+            name "left back wheel motor"
+          }
+        ]
+        endPoint Solid {
+          translation -0.0795 0.075 0.025
+          children [
+            USE WHEEL
+          ]
+          name "left back wheel"
+          boundingObject USE WHEEL
+          physics Physics {
+          }
+        }
+      }
+      HingeJoint {
+        jointParameters HingeJointParameters {
+          axis 0 1 0
+          anchor -0.0795 0 0.025
+        }
+        device [
+          RotationalMotor {
+            name "right back wheel motor"
+          }
+        ]
+        endPoint Solid {
+          translation -0.0795 -0.075 0.025
+          children [
+            USE WHEEL
+          ]
+          name "right back wheel"
+          boundingObject USE WHEEL
+          physics Physics {
+          }
+        }
+      }
+      SliderJoint {
+        jointParameters JointParameters {
+          axis 0 1 0
+        }
+        device [
+          LinearMotor {
+            name "left gripper slider motor"
+            maxPosition 0.035
+            minPosition 0
+          }
+        ]
+        endPoint Solid {
+          translation 0.1527 0.005 0.03
+          children [
+            SliderJoint {
+              jointParameters JointParameters {
+                axis 0 0 1
+              }
+              device [
+                LinearMotor {
+                  name "left gripper lift motor"
+                  maxPosition 0.005
+                  minPosition 0
+                }
+              ]
+              endPoint Solid {
+                translation 0 0 0
+                children [
+                  Shape {
+                    appearance PBRAppearance {
+                      baseColor 0 0 0
+                      roughness 1
+                      metalness 0
+                    }
+                    geometry Box {
+                      size 0.06 0.01 0.005
+                    }
+                  }
+                ]
+                name "left gripper"
+                boundingObject Box {
+                  size 0.06 0.01 0.005
+                }
+                physics Physics {
+                }
+              }
+            }
+          ]
+          name "left gripper base"
+          boundingObject Box {
+            size 0.001 0.001 0.001
+          }
+          physics Physics {
+          }
+        }
+      }
+      SliderJoint {
+        jointParameters JointParameters {
+          axis 0 1 0
+        }
+        device [
+          LinearMotor {
+            name "right gripper slider motor"
+            maxPosition 0
+            minPosition -0.035
+          }
+        ]
+        endPoint Solid {
+          translation 0.1527 -0.005 0.03
+          children [
+            SliderJoint {
+              jointParameters JointParameters {
+                axis 0 0 1
+              }
+              device [
+                LinearMotor {
+                  name "right gripper lift motor"
+                  maxPosition 0.005
+                  minPosition 0
+                }
+              ]
+              endPoint Solid {
+                translation 0 0 0
+                children [
+                  Shape {
+                    appearance PBRAppearance {
+                      baseColor 0 0 0
+                      roughness 1
+                      metalness 0
+                    }
+                    geometry Box {
+                      size 0.06 0.01 0.005
+                    }
+                  }
+                ]
+                name "right gripper"
+                boundingObject Box {
+                  size 0.06 0.01 0.005
+                }
+                physics Physics {
+                }
+              }
+            }
+          ]
+          name "right gripper base"
+          boundingObject Box {
+            size 0.001 0.001 0.001
+          }
+          physics Physics {
+          }
+        }
+      }
+      Transform {
+        translation 0 0 0.0415
+        children [
+          Shape {
+            appearance PBRAppearance {
+              baseColor 0 0 1
+              roughness 1
+              metalness 0
+            }
+            geometry DEF BODY Box {
+              size 0.223 0.115 0.06
+            }
+          }
+        ]
+      }
+      Camera {
+        translation 0.1115 0 0.0765
+        children [
+          DEF CAMERA Transform {
+            children [
+              Shape {
+                appearance PBRAppearance {
+                  baseColor 0 0 0
+                  roughness 1
+                  metalness 0
+                }
+                geometry Box {
+                  size 0.01 0.01 0.01
+                }
+              }
+            ]
+          }
+        ]
+        name "camera"
+        width 640
+        height 480
+      }
+    ]
+    boundingObject Transform {
+      translation 0 0 0.0415
+      children [
+        USE BODY
+      ]
+    }
+    physics Physics {
+      mass 0.9
+    }
+  }
+}

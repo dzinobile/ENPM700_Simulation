@@ -1,0 +1,101 @@
+#VRML_SIM R2025b utf8
+# license: Copyright Cyberbotics Ltd. Licensed for use only with Webots.
+# license url: https://cyberbotics.com/webots_assets_license
+# documentation url: https://webots.cloud/run?url=https://github.com/cyberbotics/webots/blob/released/projects/objects/toys/protos/RubberDuck.proto
+
+
+PROTO Block [
+  field SFVec3f    translation         0 0 0
+  field SFRotation rotation            0 0 1 0
+  field SFString   name                "block"
+  field SFFloat    density             400                        # Defines density of the rubber duck in kg / m^3.
+]
+{
+  Solid {
+    translation IS translation
+    rotation IS rotation
+    name IS name
+    children [
+      Transform {
+        children [
+          DEF BASE Pose {
+            translation 0 0 0
+            children [
+              Shape {
+                appearance PBRAppearance {
+                  baseColor 1 0 0
+                  roughness 1
+                  metalness 0
+                }
+                geometry Box {
+                    size 0.03 0.03 0.015
+                }
+              }
+            ]
+          }
+          DEF NECK Pose {
+            translation 0 0 0.02
+            children [
+              Shape {
+                appearance PBRAppearance {
+                  baseColor 1 0 0
+                  roughness 1
+                  metalness 0
+                }
+                geometry Box {
+                    size 0.01 0.01 0.025
+                }
+              }
+            ]
+          }
+          DEF HEAD Pose {
+            translation 0 0 0.04
+            children [
+              Shape {
+                appearance PBRAppearance {
+                    baseColor 1 0 0
+                    roughness 1
+                    metalness 0 
+                }
+                geometry Box {
+                    size 0.02 0.02 0.015
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+    boundingObject Group {
+      children [
+        Pose {
+          translation 0 0 0
+          children [
+            Box {
+              size 0.03 0.03 0.015
+            }
+          ]
+        }
+        Pose {
+          translation 0 0 0.02
+          children [
+            Box {
+              size 0.01 0.01 0.025
+            }
+          ]
+        }
+        Pose {
+          translation 0 0 0.04
+          children [
+            Box {
+              size 0.02 0.02 0.015
+            }
+          ]
+        }
+      ]
+    }
+    physics Physics {
+      density IS density
+    }
+  }
+}

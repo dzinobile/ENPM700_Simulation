@@ -1,6 +1,11 @@
 <?xml version="1.0" ?>
-<robot name="My robot">
+<robot name="my_robot">
     <webots>
         <plugin type="enpm701_simulation.my_robot_driver.MyRobotDriver" />
+        <device reference="camera" type="Camera">
+            <ros>
+                <alwaysOn>true</alwaysOn>
+            </ros>
+        </device>
     </webots>
 </robot>
