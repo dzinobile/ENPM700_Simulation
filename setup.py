@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'ENPM700_Simulation'
+package_name = 'enpm701_simulation'
 data_files = []
 data_files.append(('share/ament_index/resource_index/packages', ['resource/' + package_name]))
 data_files.append(('share/' + package_name + '/launch', ['launch/robot_launch.py']))
@@ -22,7 +22,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'my_robot_driver = ENPM700_Simulation.my_robot_driver:main',
+            'my_robot_driver = enpm701_simulation.my_robot_driver:main',
         ],
     },
 )

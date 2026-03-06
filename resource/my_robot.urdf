@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <robot name="My robot">
     <webots>
-        <plugin type="ENPM700_Simulation.my_robot_driver.MyRobotDriver" />
+        <plugin type="enpm701_simulation.my_robot_driver.MyRobotDriver" />
     </webots>
 </robot>

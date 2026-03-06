@@ -7,7 +7,7 @@ from webots_ros2_driver.webots_controller import WebotsController
 
 
 def generate_launch_description():
-    package_dir = get_package_share_directory('ENPM700_Simulation')
+    package_dir = get_package_share_directory('enpm701_simulation')
     robot_description_path = os.path.join(package_dir, 'resource', 'my_robot.urdf')
 
     webots = WebotsLauncher(
