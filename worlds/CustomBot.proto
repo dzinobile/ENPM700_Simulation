@@ -272,6 +272,54 @@ PROTO CustomBot [
         width 640
         height 480
       }
+      InertialUnit {
+        translation 0 0 0.0765
+        children [
+          Shape {
+            appearance PBRAppearance {
+              baseColor 0 0 0
+              roughness 1
+              metalness 0 
+            }
+            geometry Box {
+                size 0.01 0.01 0.01
+            }
+          }
+        ]
+        name "inertial_unit"
+      }
+      Accelerometer {
+        translation 0.005 0 0.0765
+        children [
+          Shape {
+            appearance PBRAppearance {
+                baseColor 0 0 0
+                roughness 1
+                metalness 0 
+            }
+            geometry Box {
+                size 0.01 0.01 0.01
+            }
+          }
+        ]
+        name "accelerometer"
+      }
+      Gyro {
+        translation -0.005 0 0.0765
+        children [
+          Shape {
+            appearance PBRAppearance {
+              baseColor 0 0 0
+              roughness 1
+              metalness 0 
+            }
+            geometry Box {
+              size 0.01 0.01 0.01
+            }
+          }
+        ]
+        name "gyro"
+      }
     ]
     boundingObject Transform {
       translation 0 0 0.0415
