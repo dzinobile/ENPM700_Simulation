@@ -34,7 +34,7 @@ PROTO Block [
             ]
           }
           DEF NECK Pose {
-            translation 0 0 0.02
+            translation 0 0 0.02125
             children [
               Shape {
                 appearance PBRAppearance {
@@ -43,13 +43,13 @@ PROTO Block [
                   metalness 0
                 }
                 geometry Box {
-                    size 0.01 0.01 0.025
+                    size 0.01 0.01 0.0275
                 }
               }
             ]
           }
           DEF HEAD Pose {
-            translation 0 0 0.04
+            translation 0 0 0.0425
             children [
               Shape {
                 appearance PBRAppearance {
@@ -77,15 +77,15 @@ PROTO Block [
           ]
         }
         Pose {
-          translation 0 0 0.02
+          translation 0 0 0.02125
           children [
             Box {
-              size 0.01 0.01 0.025
+              size 0.01 0.01 0.0275
             }
           ]
         }
         Pose {
-          translation 0 0 0.04
+          translation 0 0 0.0425
           children [
             Box {
               size 0.02 0.02 0.015
@@ -94,6 +94,7 @@ PROTO Block [
         }
       ]
     }
+    contactMaterial "block"
     physics Physics {
       density IS density
     }

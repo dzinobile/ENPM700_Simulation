@@ -5,15 +5,28 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2022b/project
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2022b/projects/objects/floors/protos/CircleArena.proto"
 EXTERNPROTO "CustomBot.proto"
 EXTERNPROTO "Block.proto"
+EXTERNPROTO "Arena.proto"
 
 WorldInfo {
   contactProperties [
     ContactProperties {
+      materials [
+        "wheel"
+      ]
       coulombFriction [
         1    # longitudinal (rolling direction)
-        0.1  # lateral (skid direction, allows turning)
+        0.3  # lateral (skid direction, allows turning)
       ]
       frictionRotation 0 1
+    }
+    ContactProperties {
+      materials [
+        "gripper"
+        "block"
+      ]
+      coulombFriction [
+        10
+      ]
     }
   ]
 }
@@ -26,14 +39,37 @@ TexturedBackground {
 }
 TexturedBackgroundLight {
 }
-CircleArena {
+Arena {
+  floorSize 3.048 3.048
+  floorTileSize 0.6096 0.6096
+}
+SolidBox {
+  name "construction zone"
+  translation -0.9144 0.9144 0.0005
+  size 1.2192 1.2192 0.001
+  appearance PBRAppearance {
+    baseColor 0.5 0.5 0.5
+    roughness 1
+    metalness 0
+  }
+}
+SolidBox {
+  name "landing zone"
+  translation -1.2192 -1.2192 0.0005
+  size 0.6096 0.6096 0.001
+  appearance PBRAppearance {
+    baseColor 0.5 0.5 0.5
+    roughness 1
+    metalness 0
+  }
 }
 CustomBot {
+  translation -1.2192 -1.2192 0.005
   controller "<extern>"
   controllerArgs [
     ""
   ]
 }
 Block {
-  translation 0.5 0 0
+  translation -1.2192 0 0
 }

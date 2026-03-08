@@ -7,6 +7,7 @@ data_files.append(('share/' + package_name + '/launch', ['launch/robot_launch.py
 data_files.append(('share/' + package_name + '/worlds', ['worlds/my_world.wbt']))
 data_files.append(('share/' + package_name + '/worlds', ['worlds/CustomBot.proto']))
 data_files.append(('share/' + package_name + '/worlds', ['worlds/Block.proto']))
+data_files.append(('share/' + package_name + '/worlds', ['worlds/Arena.proto']))
 data_files.append(('share/' + package_name + '/worlds/meshes', ['worlds/meshes/block.dae'] ))
 data_files.append(('share/' + package_name + '/resource', ['resource/my_robot.urdf']))
 data_files.append(('share/' + package_name, ['package.xml']))
@@ -26,6 +27,7 @@ setup(
     entry_points={
         'console_scripts': [
             'my_robot_driver = enpm701_simulation.my_robot_driver:main',
+            'teleop_node = enpm701_simulation.teleop_node:main',
         ],
     },
 )
