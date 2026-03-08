@@ -23,7 +23,7 @@ PROTO Block [
             children [
               Shape {
                 appearance PBRAppearance {
-                  baseColor 1 0 0
+                  baseColor 0 0 1
                   roughness 1
                   metalness 0
                 }
@@ -38,7 +38,7 @@ PROTO Block [
             children [
               Shape {
                 appearance PBRAppearance {
-                  baseColor 1 0 0
+                  baseColor 0 0 1
                   roughness 1
                   metalness 0
                 }
@@ -53,7 +53,7 @@ PROTO Block [
             children [
               Shape {
                 appearance PBRAppearance {
-                    baseColor 1 0 0
+                    baseColor 0 0 1
                     roughness 1
                     metalness 0 
                 }

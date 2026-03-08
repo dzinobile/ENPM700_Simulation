@@ -45,13 +45,13 @@ class TeleopNode(Node):
 
     def publish_grip(self):
         msg = Twist()
-        msg.linear.x = 0.005 if self._grip_closed else 0.035
+        msg.linear.x = 0.03 if self._grip_closed else 0.0
         msg.linear.y = 0.005 if self._lift_up else 0.0
         self._grip_pub.publish(msg)
 
     def publish_lift(self):
         msg = Twist()
-        msg.linear.x = 0.005 if self._grip_closed else 0.035
+        msg.linear.x = 0.03 if self._grip_closed else 0.0
         msg.linear.y = 0.005 if self._lift_up else 0.0
         self._lift_pub.publish(msg)
 

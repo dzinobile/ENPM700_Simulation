@@ -71,5 +71,5 @@ CustomBot {
   ]
 }
 Block {
-  translation -1.2192 0 0
+  translation -1 -1.2192 0
 }

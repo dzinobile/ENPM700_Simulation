@@ -28,6 +28,7 @@ setup(
         'console_scripts': [
             'my_robot_driver = enpm701_simulation.my_robot_driver:main',
             'teleop_node = enpm701_simulation.teleop_node:main',
+            'basic_autonomy_node = enpm701_simulation.basic_autonomy_node:main',
         ],
     },
 )

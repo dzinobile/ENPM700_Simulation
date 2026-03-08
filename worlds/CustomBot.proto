@@ -134,12 +134,12 @@ PROTO CustomBot [
         device [
           LinearMotor {
             name "left gripper slider motor"
-            maxPosition 0.035
-            minPosition 0
+            maxPosition 0
+            minPosition -0.035
           }
         ]
         endPoint Solid {
-          translation 0.1527 0.005 0.03
+          translation 0.1527 0.04 0.03
           children [
             SliderJoint {
               jointParameters JointParameters {
@@ -191,12 +191,12 @@ PROTO CustomBot [
         device [
           LinearMotor {
             name "right gripper slider motor"
-            maxPosition 0
-            minPosition -0.035
+            maxPosition 0.035
+            minPosition 0
           }
         ]
         endPoint Solid {
-          translation 0.1527 -0.005 0.03
+          translation 0.1527 -0.04 0.03
           children [
             SliderJoint {
               jointParameters JointParameters {
@@ -258,6 +258,7 @@ PROTO CustomBot [
       }
       Camera {
         translation 0.1115 0 0.0765
+        rotation 0 1 0 0.261799
         children [
           DEF CAMERA Transform {
             children [

@@ -59,8 +59,8 @@ class MyRobotDriver:
         command_motor_right_back = (forward_speed + angular_speed * HALF_DISTANCE_BETWEEN_WHEELS) / WHEEL_RADIUS
         command_motor_left_front = (forward_speed - angular_speed * HALF_DISTANCE_BETWEEN_WHEELS) / WHEEL_RADIUS
         command_motor_right_front = (forward_speed + angular_speed * HALF_DISTANCE_BETWEEN_WHEELS) / WHEEL_RADIUS
-        command_gripper_left = (gripper_position)
-        command_gripper_right = (-gripper_position)
+        command_gripper_left = (-gripper_position)
+        command_gripper_right = (gripper_position)
         command_gripper_lift = (gripper_lift)
 
         self.__left_back_motor.setVelocity(command_motor_left_back)
