@@ -1,7 +1,8 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, Imu
+from std_msgs.msg import Float64
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
@@ -17,10 +18,16 @@ class BasicAutonomyNode(Node):
         self._lift_pub = self.create_publisher(Twist, 'gripper_vel', 1)
         self._image_pub = self.create_publisher(Image, 'processed_image', 1)
         self._image_sub = self.create_subscription(Image, 'my_robot/camera/image_color', self.grab_block_callback, 1)
-
+        self._left_encoder_sub = self.create_subscription(Float64, 'wheel_position/left', self.left_encoder_callback, 1)
+        self._right_encoder_sub = self.create_subscription(Float64, 'wheel_position/right', self.right_encoder_callback, 1)
+        self._imu_sub = self.create_subscription(Imu, 'imu', self.imu_callback, 1)
         self._bridge = CvBridge()
         self._grip_closed = False
         self._lift_up = False
+        self._left_wheel_pos = 0.0
+        self._right_wheel_pos = 0.0
+        self._imu_msg = None
+        self._robot_pos = [-1.2192, -1.2192, 0]
 
     def publish_move(self, linear, angular):
         msg = Twist()
@@ -40,10 +47,20 @@ class BasicAutonomyNode(Node):
         msg.linear.y = 0.005 if self._lift_up else 0.0
         self._lift_pub.publish(msg)
 
+    def left_encoder_callback(self, msg):
+        self._left_wheel_pos = msg
+    
+    def right_encoder_callback(self, msg):
+        self._right_wheel_pos = msg
+
+    def imu_callback(self, msg):
+        self._imu_msg = msg
+
+    # def update_position(self):
+
     def grab_block_callback(self, ros_img):
         cv_img = self._bridge.imgmsg_to_cv2(ros_img)
         hsv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
-        # hsv_img[0:220,:] = (0,0,0)
         blue_lower = np.array([80, 115, 62])
         blue_upper = np.array([140, 255, 255])
         blue_mask = hsv_img.copy()
