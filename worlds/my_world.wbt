@@ -65,11 +65,14 @@ SolidBox {
 }
 CustomBot {
   translation -1.2192 -1.2192 0.005
+  rotation 0 0 1 1.5708
   controller "<extern>"
   controllerArgs [
     ""
   ]
 }
 Block {
-  translation -1 -1.2192 0
+  #translation -1 -1.2192 0
+  translation 0.0 0.0 0.005
+  color 0 0 1
 }

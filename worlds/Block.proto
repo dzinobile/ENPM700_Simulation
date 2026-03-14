@@ -9,6 +9,7 @@ PROTO Block [
   field SFRotation rotation            0 0 1 0
   field SFString   name                "block"
   field SFFloat    density             400                        # Defines density of the rubber duck in kg / m^3.
+  field SFColor    color               1 0 0
 ]
 {
   Solid {
@@ -23,7 +24,7 @@ PROTO Block [
             children [
               Shape {
                 appearance PBRAppearance {
-                  baseColor 0 0 1
+                  baseColor IS color
                   roughness 1
                   metalness 0
                 }
@@ -38,7 +39,7 @@ PROTO Block [
             children [
               Shape {
                 appearance PBRAppearance {
-                  baseColor 0 0 1
+                  baseColor IS color
                   roughness 1
                   metalness 0
                 }
@@ -53,7 +54,7 @@ PROTO Block [
             children [
               Shape {
                 appearance PBRAppearance {
-                    baseColor 0 0 1
+                    baseColor IS color
                     roughness 1
                     metalness 0 
                 }
