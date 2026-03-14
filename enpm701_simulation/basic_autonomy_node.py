@@ -113,16 +113,17 @@ class BasicAutonomyNode(Node):
             cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
             cv2.putText(cv_img, f"({centroid[0]}, {centroid[1]})", (centroid[0] + 5, centroid[1] - 5),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
-            if rect_y >= 380 or self._grip_closed:
+            if rect_y >= 420 or self._grip_closed:
                 cmd_msg.linear.x = 0.0
                 cmd_msg.linear.y = 0.0
                 self.get_logger().info('gripping block')
-                self.grip_block()
+                self._grip_closed = True
+                self.publish_grip()
 
 
             else:
                 normalised_angle_error = (rect_x - cols / 2.0) / (cols / 2.0)
-                normalised_speed_error = ((1 - abs(normalised_angle_error))/2.0) * ((380 - rect_y)/380)
+                normalised_speed_error = ((1 - abs(normalised_angle_error))/2.0) * ((420 - rect_y)/420)
                 cmd_msg.linear.x = self._linear_speed * normalised_speed_error
                 cmd_msg.angular.z = -self._angular_speed * normalised_angle_error
                 self.get_logger().info('Moving to block')
