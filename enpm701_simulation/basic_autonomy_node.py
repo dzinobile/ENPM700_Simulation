@@ -42,10 +42,25 @@ class BasicAutonomyNode(Node):
     def imu_callback(self, msg):
         self._imu_msg = msg
 
+    def quaternion_to_euler(selfl, x, y, z, w):
+        norm = np.sqrt(w**2 + x**2 + y**2 + z**2)
+        w, x, y, z = w/norm, x/norm, y/norm, z/norm
+        siny_cosp = 2 * (w * z + x * y)
+        cosy_cosp = 1 - 2 * (y**2 + z**2)
+        yaw = np.arctan2(siny_cosp, cosy_cosp)
+        return yaw
+
+    def update_position(self):
+        q = self._imu_msg.orientation
+        yaw = self.quaternion_to_euler(q.x, q.y, q.z, q.w)
+        self._robot_pos[2] = yaw*(180/np.pi)
+
+
+
     def state_behavior(self, rect_x, rect_y, cols):
         cmd_msg = Twist()
         grip_msg = Twist()
-
+        self.update_position()
         if self._current_state == "go to block":
             if rect_x:
                 if rect_y >= 420:
