@@ -15,7 +15,6 @@ Controls:
   A / D   : turn left / right
   Space   : stop
   G       : toggle gripper open/close
-  L       : toggle gripper lift up/down
   Ctrl+C  : quit
 """
 
@@ -32,10 +31,8 @@ class TeleopNode(Node):
         super().__init__('teleop_node')
         self._cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 1)
         self._grip_pub = self.create_publisher(Twist, 'gripper_vel', 1)
-        self._lift_pub = self.create_publisher(Twist, 'gripper_vel', 1)
 
         self._grip_closed = False
-        self._lift_up = False
 
     def publish_twist(self, linear, angular):
         msg = Twist()
@@ -46,14 +43,8 @@ class TeleopNode(Node):
     def publish_grip(self):
         msg = Twist()
         msg.linear.x = 0.03 if self._grip_closed else 0.0
-        msg.linear.y = 0.005 if self._lift_up else 0.0
         self._grip_pub.publish(msg)
 
-    def publish_lift(self):
-        msg = Twist()
-        msg.linear.x = 0.03 if self._grip_closed else 0.0
-        msg.linear.y = 0.005 if self._lift_up else 0.0
-        self._lift_pub.publish(msg)
 
 
 def main(args=None):
@@ -84,11 +75,6 @@ def main(args=None):
                 node._grip_closed = not node._grip_closed
                 node.publish_grip()
                 print(f"Gripper: {'closed' if node._grip_closed else 'open'}")
-                continue
-            elif key == 'l':
-                node._lift_up = not node._lift_up
-                node.publish_lift()
-                print(f"Lift: {'up' if node._lift_up else 'down'}")
                 continue
             elif key == '\x03':  # Ctrl+C
                 break

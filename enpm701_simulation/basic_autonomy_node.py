@@ -16,7 +16,6 @@ class BasicAutonomyNode(Node):
         super().__init__('basic_autonomy_node')
         self._cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 1)
         self._grip_pub = self.create_publisher(Twist, 'gripper_vel', 1)
-        self._lift_pub = self.create_publisher(Twist, 'gripper_vel', 1)
         self._image_pub = self.create_publisher(Image, 'processed_image', 1)
         self._image_sub = self.create_subscription(Image, 'my_robot/camera/image_color', self.grab_block_callback, 1)
         self._left_encoder_sub = self.create_subscription(Float64, 'wheel_position/left', self.left_encoder_callback, 1)
@@ -24,7 +23,6 @@ class BasicAutonomyNode(Node):
         self._imu_sub = self.create_subscription(Imu, 'imu', self.imu_callback, 1)
         self._bridge = CvBridge()
         self._grip_closed = False
-        self._lift_up = False
         self._left_wheel_pos = 0.0
         self._right_wheel_pos = 0.0
         self._imu_msg = None
@@ -42,14 +40,8 @@ class BasicAutonomyNode(Node):
     def publish_grip(self):
         msg = Twist()
         msg.linear.x = 0.03 if self._grip_closed else 0.0
-        msg.linear.y = 0.005 if self._lift_up else 0.0
         self._grip_pub.publish(msg)
 
-    def publish_lift(self):
-        msg = Twist()
-        msg.linear.x = 0.03 if self._grip_closed else 0.0
-        msg.linear.y = 0.005 if self._lift_up else 0.0
-        self._lift_pub.publish(msg)
 
     def left_encoder_callback(self, msg):
         self._left_wheel_pos = msg
@@ -60,19 +52,6 @@ class BasicAutonomyNode(Node):
     def imu_callback(self, msg):
         self._imu_msg = msg
 
-    def grip_block(self):
-        time = self.get_clock().now()
-        if not self._gripper_start:
-            self._gripper_start = time
-
-        self._grip_closed = True
-        grip_delay = time - self._gripper_start
-
-        if grip_delay.nanoseconds * 1e-9 >= 2.0:
-            self._lift_up = True
-
-        self.publish_grip()
-        self.publish_lift()
 
     #395 IN Y POSITION FOR BLOCK LIMIT
 
