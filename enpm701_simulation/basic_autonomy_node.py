@@ -31,6 +31,8 @@ class BasicAutonomyNode(Node):
         self._checkpoint_time = self.get_clock().now()
         self._left_wheel_distance = 0.0
         self._right_wheel_distance = 0.0
+        self._dropoff_coords = [-0.9144, 0.9144]
+        self._start_angle = 0.0
 
 
     def left_encoder_callback(self, msg):
@@ -67,9 +69,62 @@ class BasicAutonomyNode(Node):
         self._robot_pos[0] = round(x, 4)
         self._robot_pos[1] = round(y, 4)
 
+    def turn_to_angle(self, angle):
+        cmd_msg = Twist()
+        cmd_msg.linear.x = 0.0
+        angle_error = self._robot_pos[2] - angle
+        angle_error = np.arctan2(np.sin(angle_error), np.cos(angle_error))
+        normalized_angle_error = angle_error / np.pi
+        cmd_msg.angular.z = -self._angular_speed * normalized_angle_error
+        return cmd_msg
+    
+    def move_forward_straight(self, distance, angle):
+        cmd_msg = Twist()
+        angle_error = self._robot_pos[2] - angle
+        angle_error = np.arctan2(np.sin(angle_error), np.cos(angle_error))
+        normalized_angle_error = angle_error / np.pi
+        cmd_msg.angular.z = -self._angular_speed * normalized_angle_error
 
+        cmd_msg.linear.x = min(self._linear_speed, self._linear_speed * distance)
 
+    def turn_to_point(self, point):
+        cmd_msg = Twist()
+        cmd_msg.linear.x = 0.0
+        x2, y2 = point[0], point[1]
+        x1, y1 = self._robot_pos[0], self._robot_pos[1]
+        angle = np.arctan2((y2-y1),(x2-x1))
+        angle_error = self._robot_pos[2] - angle
+        angle_error = np.arctan2(np.sin(angle_error), np.cos(angle_error))
+        normalized_angle_error = angle_error / np.pi
+        cmd_msg.angular.z = -self._angular_speed * normalized_angle_error
+        return angle_error, cmd_msg
+    
+    def forward_to_point(self, point, angle):
+        cmd_msg = Twist()
+        x2, y2 = point[0], point[1]
+        x1, y1 = self._robot_pos[0], self._robot_pos[1]
+        angle_error = self._robot_pos[2] - angle
+        angle_error = np.arctan2(np.sin(angle_error), np.cos(angle_error))
+        normalized_angle_error = angle_error / np.pi
+        cmd_msg.angular.z = -self._angular_speed * normalized_angle_error
+        distance_error = np.sqrt((x2-x1)**2 + (y2-y1)**2)
+        cmd_msg.linear.x = min(self._linear_speed, distance_error * self._linear_speed)
+        return distance_error, cmd_msg
+        
+    # def move_to_point(self, point):
+    #     x2, y2 = point[0], point[1]
+    #     x1, y1 = self._robot_pos[0], self._robot_pos[1]
+    #     req_angle = np.arctan2((y2-y1),(x2-x1))
+    #     cmd_msg = Twist()
+    #     angle_error = self._robot_pos[2] - req_angle
+    #     angle_error = np.arctan2(np.sin(angle_error), np.cos(angle_error))
+    #     distance_error = np.sqrt((x2-x1)**2 + (y2-y1)**2)
+    #     normalized_angle_error = angle_error / np.pi
+    #     cmd_msg.angular.z = -self._angular_speed * normalized_angle_error
 
+    #     cmd_msg.linear.x = distance_error * self._linear_speed * np.exp(-30 * abs(normalized_angle_error))
+
+    #     return distance_error, cmd_msg
 
     def state_behavior(self, rect_x, rect_y, cols):
         cmd_msg = Twist()
@@ -100,15 +155,25 @@ class BasicAutonomyNode(Node):
             grip_msg.linear.x = 0.03
             if (self.get_clock().now() - self._checkpoint_time).nanoseconds * 1e-9 > 1.0:
                 self._checkpoint_time = self.get_clock().now()
+                self._current_state = "turn to drop off"
+
+        elif self._current_state == "turn to drop off":
+            grip_msg.linear.x = 0.03
+            angle_error, cmd_msg = self.turn_to_point(self._dropoff_coords)
+            if abs(angle_error) < 0.03:
                 self._current_state = "go to drop off"
+                self._checkpoint_time = self.get_clock().now()
+                self._start_angle = self._robot_pos[2]
+
 
         elif self._current_state == "go to drop off":
-            cmd_msg.linear.x = self._linear_speed
-            cmd_msg.angular.z = 0.0
+            distance_error, cmd_msg = self.forward_to_point(self._dropoff_coords, self._start_angle)
             grip_msg.linear.x = 0.03
-            if (self.get_clock().now() - self._checkpoint_time).nanoseconds * 1e-9 > 2.0:
-                self._checkpoint_time = self.get_clock().now()
+            print(distance_error)
+            if distance_error < 0.06:
                 self._current_state = "drop off block"
+                self._checkpoint_time = self.get_clock().now()
+
 
 
         elif self._current_state == "drop off block":
