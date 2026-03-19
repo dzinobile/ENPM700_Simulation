@@ -8,6 +8,7 @@ import cv2
 from cv_bridge import CvBridge
 import numpy as np
 from rclpy.duration import Duration
+import itertools
 
 
 class BasicAutonomyNode(Node):
@@ -33,6 +34,8 @@ class BasicAutonomyNode(Node):
         self._right_wheel_distance = 0.0
         self._dropoff_coords = [-0.9144, 0.9144]
         self._reset_coords = [-0.3048, 0.3048]
+        self._color_cycle = itertools.cycle(['r', 'g', 'b'])
+        self._current_color = next(self._color_cycle)
 
 
 
@@ -222,6 +225,7 @@ class BasicAutonomyNode(Node):
             distance_error, cmd_msg = self.backward_to_point(self._reset_coords)
             if distance_error < 0.06:
                 self._current_state = "search start position"
+                self._current_color = next(self._color_cycle)
 
         elif self._current_state == "search start position":
             grip_msg.linear.x = 0.0
@@ -247,18 +251,31 @@ class BasicAutonomyNode(Node):
         hsv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
         blue_lower = np.array([108, 105, 10])
         blue_upper = np.array([130, 255, 255])
-        red_lower1 = np.array([190, 100, 100])
+        red_lower1 = np.array([171, 145, 47])
         red_upper1 = np.array([255, 255, 255])
-        red_lower2 = np.array([0, 190, 195])
-        red_upper2 = np.array([255, 255, 255])
+        red_lower2 = np.array([0, 175, 193])
+        red_upper2 = np.array([10, 255, 255])
         green_lower = np.array([40, 0, 0])
         green_upper = np.array([100, 255, 255])
 
 
-        blue_mask = hsv_img.copy()
-        blue_mask = cv2.inRange(blue_mask, blue_lower, blue_upper)
+        blue_mask = cv2.inRange(hsv_img, blue_lower, blue_upper)
         blue_contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
+
+
+        red_mask = cv2.bitwise_or(
+                cv2.inRange(hsv_img, red_lower1, red_upper1),
+                cv2.inRange(hsv_img, red_lower2, red_upper2))
+        red_contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        green_mask = cv2.inRange(hsv_img, green_lower, green_upper)
+        green_contours, _ = cv2.findContours(green_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        rect_dict = {
+            'r': (None, None),
+            'g': (None, None),
+            'b': (None, None)
+        }
+
         if len(blue_contours) > 0:
             rect = cv2.minAreaRect(blue_contours[0])
             (rect_x, rect_y),(rect_w, rect_h), rect_a = rect
@@ -269,11 +286,39 @@ class BasicAutonomyNode(Node):
             cv_img = cv2.drawContours(cv_img, [box], 0, (0, 0, 0), 1)
             centroid = (int(rect_x), int(rect_y))
             cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
-            cv2.putText(cv_img, f"robot pos: {self._robot_pos}", (20, 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
+            rect_dict['b'] = (rect_x, rect_y)
+
+        if len(red_contours) > 0:
+            rect = cv2.minAreaRect(red_contours[0])
+            (rect_x, rect_y),(rect_w, rect_h), rect_a = rect
+            if rect_w > rect_h:
+                rect_w, rect_h = rect_h, rect_w
+            box = cv2.boxPoints(rect)
+            box = np.int0(box)
+            cv_img = cv2.drawContours(cv_img, [box], 0, (0, 0, 0), 1)
+            centroid = (int(rect_x), int(rect_y))
+            cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
+            rect_dict['r'] = (rect_x, rect_y)
+
+        if len(green_contours) > 0:
+            rect = cv2.minAreaRect(green_contours[0])
+            (rect_x, rect_y),(rect_w, rect_h), rect_a = rect
+            if rect_w > rect_h:
+                rect_w, rect_h = rect_h, rect_w
+            box = cv2.boxPoints(rect)
+            box = np.int0(box)
+            cv_img = cv2.drawContours(cv_img, [box], 0, (0, 0, 0), 1)
+            centroid = (int(rect_x), int(rect_y))
+            cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
+            rect_dict['g'] = (rect_x, rect_y)
+
+
+
+        cv2.putText(cv_img, f"robot pos: {self._robot_pos}, current color: {self._current_color}", (20, 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
         
         
-        self.state_behavior(rect_x, rect_y, cols)
+        self.state_behavior(rect_dict[self._current_color][0], rect_dict[self._current_color][1], cols)
         
         ros_img = self._bridge.cv2_to_imgmsg(cv_img)
         self._image_pub.publish(ros_img)

@@ -30,7 +30,7 @@ Controls:
 
 BOUNDS = {
     'red':   {'lower': np.array([171, 138, 47]), 'upper': np.array([255, 255, 255]),
-              'lower2': np.array([0, 175, 193]),  'upper2': np.array([46, 255, 255])},
+              'lower2': np.array([0, 175, 193]),  'upper2': np.array([10, 255, 255])},
     'green': {'lower': np.array([39, 0, 10]),     'upper': np.array([92, 255, 255])},
     'blue':  {'lower': np.array([68, 0, 10]),     'upper': np.array([130, 255, 255])},
 }
@@ -53,10 +53,10 @@ def print_bounds():
     print()
 
 
-class ColorPicker(Node):
+class BoundingBoxes(Node):
     def __init__(self):
-        super().__init__('colorpicker_node')
-        self._image_pub = self.create_publisher(Image, 'colorpicker_image', 1)
+        super().__init__('boundingboxes_node')
+        self._image_pub = self.create_publisher(Image, 'boundingboxes_image', 1)
         self._image_sub = self.create_subscription(
             Image, 'my_robot/camera/image_color', self._callback, 1)
         self._bridge = CvBridge()
@@ -74,16 +74,26 @@ class ColorPicker(Node):
         else:
             mask = cv2.inRange(hsv, b['lower'], b['upper'])
 
-        result = cv2.bitwise_and(cv_img, cv_img, mask=mask)
-        cv2.putText(result, f"mode: {mode}", (10, 25),
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if len(contours) > 0:
+            rect = cv2.minAreaRect(contours[0])
+            (rect_x, rect_y),(rect_w, rect_h), rect_a = rect
+            if rect_w > rect_h:
+                rect_w, rect_h = rect_h, rect_w
+            box = cv2.boxPoints(rect)
+            box = np.int0(box)
+            cv_img = cv2.drawContours(cv_img, [box], 0, (0, 0, 0), 1)
+            centroid = (int(rect_x), int(rect_y))
+            cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
+        cv2.putText(cv_img, f"mode: {mode}", (10, 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        self._image_pub.publish(self._bridge.cv2_to_imgmsg(result))
+        self._image_pub.publish(self._bridge.cv2_to_imgmsg(cv_img))
 
 
 def main(args=None):
     global mode
     rclpy.init(args=args)
-    node = ColorPicker()
+    node = BoundingBoxes()
     settings = termios.tcgetattr(sys.stdin)
 
     spin_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
