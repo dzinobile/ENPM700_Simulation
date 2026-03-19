@@ -71,7 +71,14 @@ CustomBot {
   ]
 }
 Block {
-  #translation -1 -1.2192 0
   translation 0.0 0.0 0.005
+  color 0 0 1
+}
+Block {
+  translation -0.6 -0.3 0.005
+  color 0 0 1
+}
+Block {
+  translation 0.3 0.3 0.005
   color 0 0 1
 }
