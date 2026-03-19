@@ -9,8 +9,6 @@ from cv_bridge import CvBridge
 import numpy as np
 from rclpy.duration import Duration
 
-LINEAR_SPEED = 0.5
-ANGULAR_SPEED = 2.0
 
 class BasicAutonomyNode(Node):
     def __init__(self):
@@ -26,18 +24,20 @@ class BasicAutonomyNode(Node):
         self._left_wheel_pos = 0.0
         self._right_wheel_pos = 0.0
         self._imu_msg = Imu()
-        self._robot_pos = [-1.2192, -1.2192, 0]
+        self._robot_pos = [-1.2192, -1.2192, 0.0]
         self._linear_speed = 0.5
         self._angular_speed = 2.0
         self._current_state = "go to block"
         self._checkpoint_time = self.get_clock().now()
+        self._left_wheel_distance = 0.0
+        self._right_wheel_distance = 0.0
 
 
     def left_encoder_callback(self, msg):
-        self._left_wheel_pos = msg
-    
+        self._left_wheel_pos = msg.data
+
     def right_encoder_callback(self, msg):
-        self._right_wheel_pos = msg
+        self._right_wheel_pos = msg.data
 
     def imu_callback(self, msg):
         self._imu_msg = msg
@@ -51,9 +51,23 @@ class BasicAutonomyNode(Node):
         return yaw
 
     def update_position(self):
+        new_left_total_distance = (0.032 * self._left_wheel_pos)
+        new_right_total_distance = (0.032 * self._right_wheel_pos)
+        left_distance_traveled = new_left_total_distance - self._left_wheel_distance
+        right_distance_traveled = new_right_total_distance - self._right_wheel_distance
+        average_distance_traveled = (left_distance_traveled + right_distance_traveled) / 2.0
+        self._left_wheel_distance = new_left_total_distance
+        self._right_wheel_distance = new_right_total_distance
+
         q = self._imu_msg.orientation
         yaw = self.quaternion_to_euler(q.x, q.y, q.z, q.w)
-        self._robot_pos[2] = yaw*(180/np.pi)
+        self._robot_pos[2] = round(yaw, 4)
+        x = self._robot_pos[0] + (average_distance_traveled * np.cos(yaw))
+        y = self._robot_pos[1] + (average_distance_traveled * np.sin(yaw))
+        self._robot_pos[0] = round(x, 4)
+        self._robot_pos[1] = round(y, 4)
+
+
 
 
 
