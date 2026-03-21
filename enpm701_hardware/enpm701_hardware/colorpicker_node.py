@@ -8,7 +8,6 @@ from sensor_msgs.msg import Image
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
-from picamera2 import Picamera2
 
 HELP = """
 Controls:
@@ -60,18 +59,16 @@ class ColorPicker(Node):
         self._image_pub = self.create_publisher(Image, 'colorpicker_image', 1)
         self._bridge = CvBridge()
 
-        self._camera = Picamera2()
-        config = self._camera.create_preview_configuration(
-            main={"format": "RGB888", "size": (640, 480)}
-        )
-        self._camera.configure(config)
-        self._camera.start()
+        self._camera = cv2.VideoCapture(0)
+        self._camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self._camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
         self.create_timer(0.1, self._timer_callback)
 
     def _timer_callback(self):
-        frame = self._camera.capture_array()
-        cv_img = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        ret, cv_img = self._camera.read()
+        if not ret:
+            return
         hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
         b = BOUNDS[mode]
 
@@ -89,7 +86,7 @@ class ColorPicker(Node):
         self._image_pub.publish(self._bridge.cv2_to_imgmsg(result))
 
     def destroy_node(self):
-        self._camera.stop()
+        self._camera.release()
         super().destroy_node()
 
 
