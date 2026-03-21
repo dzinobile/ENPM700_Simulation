@@ -59,7 +59,11 @@ class ColorPicker(Node):
         self._image_pub = self.create_publisher(Image, 'colorpicker_image', 1)
         self._bridge = CvBridge()
 
-        self._camera = cv2.VideoCapture(0)
+        pipeline = (
+            "libcamerasrc ! video/x-raw,width=640,height=480 ! "
+            "videoconvert ! video/x-raw,format=BGR ! appsink"
+        )
+        self._camera = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         self._camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self._camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
