@@ -35,6 +35,7 @@ setup(
             'colorpicker_node = enpm701_simulation.colorpicker_node:main',
             'boundingboxes_node = enpm701_simulation.boundingboxes_node:main',
             'distance_calibration_node = enpm701_simulation.distance_calibration_node:main',
+            'block_tracker_node = enpm701_simulation.block_tracker_node:main',
         ],
     },
 )
