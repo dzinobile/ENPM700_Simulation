@@ -10,6 +10,8 @@ data_files.append(('share/' + package_name + '/worlds', ['worlds/Block.proto']))
 data_files.append(('share/' + package_name + '/worlds', ['worlds/Arena.proto']))
 data_files.append(('share/' + package_name + '/worlds/meshes', ['worlds/meshes/block.dae'] ))
 data_files.append(('share/' + package_name + '/resource', ['resource/my_robot.urdf']))
+data_files.append(('share/' + package_name + '/scripts', ['scripts/generate_block_info.py']))
+data_files.append(('share/' + package_name + '/worlds', ['worlds/block_info.yaml']))
 data_files.append(('share/' + package_name, ['package.xml']))
 
 setup(
