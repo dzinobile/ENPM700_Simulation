@@ -20,6 +20,7 @@ class BlockTracker(Node):
     def __init__(self):
         super().__init__('block_tracker_node')
         self._image_pub = self.create_publisher(Image, 'block_tracker_image', 1)
+        self._map_pub = self.create_publisher(Image, 'block_map_image', 1)
         self._image_sub = self.create_subscription(
             Image, 'my_robot/camera/image_color', self._callback, 1)
         self._bridge = CvBridge()
@@ -42,7 +43,7 @@ class BlockTracker(Node):
     def imu_callback(self, msg):
         self._imu_msg = msg
 
-    def quaternion_to_euler(selfl, x, y, z, w):
+    def quaternion_to_euler(self, x, y, z, w):
         norm = np.sqrt(w**2 + x**2 + y**2 + z**2)
         w, x, y, z = w/norm, x/norm, y/norm, z/norm
         siny_cosp = 2 * (w * z + x * y)
@@ -80,6 +81,24 @@ class BlockTracker(Node):
         block_x = self._robot_pos[0] + (block_distance * np.cos(block_angle))
         block_y = self._robot_pos[1] + (block_distance * np.sin(block_angle))
         return block_x, block_y
+    
+    def xy_to_pixel(self, x, y):
+        pixel_x = int((x + (3.048/2)) / 3.048 * 500)
+        pixel_y = 500 - int((y + (3.048/2)) / 3.048 * 500)
+        return pixel_x, pixel_y
+
+    def publish_map(self, block_positions):
+        map_img = np.zeros((500, 500, 3), dtype=np.uint8) * 255
+        robot_x, robot_y = self.xy_to_pixel(self._robot_pos[0], self._robot_pos[1])
+        cv2.rectangle(map_img, (0, 0), (199, 200), (100, 100, 100), -1)
+        cv2.rectangle(map_img, (0, 500), (100, 400), (100, 100, 100), -1)
+        cv2.circle(map_img, (robot_x, robot_y), 10, (255, 255, 255), -1)
+        cv2.line(map_img, (robot_x, robot_y), (robot_x + int(10 * np.cos(self._robot_pos[2])), robot_y - int(10 * np.sin(self._robot_pos[2]))), (0, 0, 0), 2) 
+        for block_position in block_positions:
+            c, block_x, block_y = block_position
+            pixel_x, pixel_y = self.xy_to_pixel(block_x, block_y)
+            cv2.circle(map_img, (pixel_x, pixel_y), 5, c, -1)
+        self._map_pub.publish(self._bridge.cv2_to_imgmsg(map_img))
 
     def _callback(self, ros_img):
         self.update_position()
@@ -92,11 +111,14 @@ class BlockTracker(Node):
                     cv2.inRange(hsv, b['lower'], b['upper']),
                     cv2.inRange(hsv, b['lower2'], b['upper2'])
                 )
-                n = 24.805
-                e = -0.821
+                c = (0, 0, 255)
+            elif color == 'green':
+                mask = cv2.inRange(hsv, b['lower'], b['upper'])
+                c = (0, 255, 0)
             else:
                 mask = cv2.inRange(hsv, b['lower'], b['upper'])
-
+                c = (255, 0, 0)
+            block_positions = []
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if len(contours) > 0:
                 for i in range(0, min(3, len(contours))):
@@ -107,13 +129,15 @@ class BlockTracker(Node):
                             rect_w, rect_h = rect_h, rect_w
                         box = cv2.boxPoints(rect)
                         box = np.int0(box)
-                        cv_img = cv2.drawContours(cv_img, [box], 0, (0, 0, 0), 1)
+                        cv_img = cv2.drawContours(cv_img, [box], 0, c, 1)
                         centroid = (int(rect_x), int(rect_y))
                         cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
                         block_position = self.estimate_block_position(rect_x, rect_h)
+                        block_positions.append((c, block_position[0], block_position[1]))
                         cv2.putText(cv_img, f"{color} block at ({block_position[0]:.2f}, {block_position[1]:.2f})", (centroid[0]+5, centroid[1]-5),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
                 self._image_pub.publish(self._bridge.cv2_to_imgmsg(cv_img))
+                self.publish_map(block_positions)
 
 
 def main(args=None):
