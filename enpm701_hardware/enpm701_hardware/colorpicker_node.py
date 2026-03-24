@@ -58,21 +58,10 @@ class ColorPicker(Node):
         super().__init__('colorpicker_node')
         self._image_pub = self.create_publisher(Image, 'colorpicker_image', 1)
         self._bridge = CvBridge()
+        self.create_subscription(Image, '/image_raw', self._image_callback, 1)
 
-        pipeline = (
-            "libcamerasrc ! video/x-raw,width=640,height=480 ! "
-            "videoconvert ! video/x-raw,format=BGR ! appsink"
-        )
-        self._camera = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
-        self._camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self._camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-
-        self.create_timer(0.1, self._timer_callback)
-
-    def _timer_callback(self):
-        ret, cv_img = self._camera.read()
-        if not ret:
-            return
+    def _image_callback(self, msg):
+        cv_img = self._bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
         b = BOUNDS[mode]
 
@@ -88,10 +77,6 @@ class ColorPicker(Node):
         cv2.putText(result, f"mode: {mode}", (10, 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         self._image_pub.publish(self._bridge.cv2_to_imgmsg(result))
-
-    def destroy_node(self):
-        self._camera.release()
-        super().destroy_node()
 
 
 def main(args=None):
