@@ -7,13 +7,26 @@ import os
 
 
 def generate_launch_description():
+    # Resolve foxglove_bridge share and prefer the launch/ subfolder where
+    # foxglove_bridge_launch.xml is usually installed.
+    foxglove_share = get_package_share_directory('foxglove_bridge')
+    # common install layout: <share>/foxglove_bridge/launch/...
+    candidate_paths = [
+        os.path.join(foxglove_share, 'launch', 'foxglove_bridge_launch.xml'),
+        os.path.join(foxglove_share, 'foxglove_bridge_launch.xml'),
+    ]
+
+    foxglove_launch_path = None
+    for p in candidate_paths:
+        if os.path.exists(p):
+            foxglove_launch_path = p
+            break
+
+    if foxglove_launch_path is None:
+        raise FileNotFoundError(f"foxglove_bridge launch file not found in: {candidate_paths}")
+
     foxglove_launch = IncludeLaunchDescription(
-        AnyLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('foxglove_bridge'),
-                'foxglove_bridge_launch.xml'
-            )
-        ),
+        AnyLaunchDescriptionSource(foxglove_launch_path),
         launch_arguments={'port': '8765'}.items(),
     )
 
