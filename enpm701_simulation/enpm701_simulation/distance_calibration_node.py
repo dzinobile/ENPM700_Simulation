@@ -1,31 +1,25 @@
+import csv
+import datetime
+import os
 import threading
 import sys
 import tty
 import termios
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
+from ament_index_python.packages import get_package_share_directory
 
 HELP = """
 Controls:
   M     : cycle mode (red -> green -> blue)
-  Q/A   : lower bound H up/down
-  W/S   : lower bound S up/down
-  E/D   : lower bound V up/down
-  R/F   : upper bound H up/down
-  T/G   : upper bound S up/down
-  Y/H   : upper bound V up/down
-  (red mode only - second range)
-  U/J   : lower_2 H up/down
-  I/K   : lower_2 S up/down
-  O/L   : lower_2 V up/down
-  Z/X   : upper_2 H up/down
-  C/V   : upper_2 S up/down
-  B/N   : upper_2 V up/down
-  Ctrl+C: quit
+  Space : log current color / distance / rect_h to CSV, advance distance
+  R     : reset distance back to 0.3 m
+  Ctrl+C: quit (saves timestamped copy of CSV)
 """
 
 BOUNDS = {
@@ -35,9 +29,9 @@ BOUNDS = {
     'blue':  {'lower': np.array([100, 109, 5]),     'upper': np.array([130, 255, 255])},
 }
 
-
-
 mode = 'red'
+distance = 0.3
+_data_rows = []
 
 
 def get_key(settings):
@@ -47,21 +41,43 @@ def get_key(settings):
     return key
 
 
-def print_bounds():
-    b = BOUNDS[mode]
-    print(f"[{mode}] lower={b['lower']} upper={b['upper']}", end='')
-    if mode == 'red':
-        print(f"  lower2={b['lower2']} upper2={b['upper2']}", end='')
-    print()
+def _csv_path():
+    pkg = get_package_share_directory('enpm701_simulation')
+    return os.path.join(pkg, 'block_distance_testing.csv')
 
 
-class BoundingBoxes(Node):
+def _build_rows():
+    b = BOUNDS
+    rows = [
+        ['bound', 'H', 'S', 'V'],
+        ['red lower 1',  *b['red']['lower'].tolist()],
+        ['red upper 1',  *b['red']['upper'].tolist()],
+        ['red lower 2',  *b['red']['lower2'].tolist()],
+        ['red upper 2',  *b['red']['upper2'].tolist()],
+        ['green lower',  *b['green']['lower'].tolist()],
+        ['green upper',  *b['green']['upper'].tolist()],
+        ['blue lower',   *b['blue']['lower'].tolist()],
+        ['blue upper',   *b['blue']['upper'].tolist()],
+        [],
+        ['color', 'distance [m]', 'h [pixels]'],
+    ]
+    rows.extend(_data_rows)
+    return rows
+
+
+def _write_csv(path):
+    with open(path, 'w', newline='') as f:
+        csv.writer(f).writerows(_build_rows())
+
+
+class DistanceCalibrationNode(Node):
     def __init__(self):
-        super().__init__('boundingboxes_node')
+        super().__init__('distance_calibration_node')
         self._image_pub = self.create_publisher(Image, 'boundingboxes_image', 1)
         self._image_sub = self.create_subscription(
             Image, 'my_robot/camera/image_color', self._callback, 1)
         self._bridge = CvBridge()
+        self.last_rect_h = None
 
     def _callback(self, ros_img):
         cv_img = self._bridge.imgmsg_to_cv2(ros_img)
@@ -73,63 +89,46 @@ class BoundingBoxes(Node):
                 cv2.inRange(hsv, b['lower'], b['upper']),
                 cv2.inRange(hsv, b['lower2'], b['upper2'])
             )
-            n = 24.805
-            e = -0.821
-        elif mode == 'green':
-            mask = cv2.inRange(hsv, b['lower'], b['upper'])
-            n = 24.805
-            e = -0.821
         else:
             mask = cv2.inRange(hsv, b['lower'], b['upper'])
-            n = 24.67
-            e = -0.82
+
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if len(contours) > 0:
+        if contours:
             rect = cv2.minAreaRect(contours[0])
-            (rect_x, rect_y),(rect_w, rect_h), rect_a = rect
+            (rect_x, rect_y), (rect_w, rect_h), rect_a = rect
             if rect_w > rect_h:
                 rect_w, rect_h = rect_h, rect_w
+            self.last_rect_h = rect_h
             box = cv2.boxPoints(rect)
             box = np.int0(box)
             cv_img = cv2.drawContours(cv_img, [box], 0, (0, 0, 0), 1)
             centroid = (int(rect_x), int(rect_y))
             cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
-            distance = n*(rect_h**e)
-            cv2.putText(cv_img, f"d={distance:.2f}m", (centroid[0]+5, centroid[1]-5),
+            cv2.putText(cv_img, f"({rect_h:.1f}", (centroid[0] + 5, centroid[1] - 5),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+        else:
+            self.last_rect_h = None
+
         cv2.putText(cv_img, f"mode: {mode}", (10, 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         self._image_pub.publish(self._bridge.cv2_to_imgmsg(cv_img))
 
 
 def main(args=None):
-    global mode
+    global mode, distance
+
     rclpy.init(args=args)
-    node = BoundingBoxes()
+    node = DistanceCalibrationNode()
     settings = termios.tcgetattr(sys.stdin)
 
     spin_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     spin_thread.start()
 
+    csv_file = _csv_path()
+    _write_csv(csv_file)
+    print(f'CSV ready: {csv_file}')
     print(HELP)
-    print_bounds()
-
-    KEY_ACTIONS = {
-        'q': ('lower', 0,  1), 'a': ('lower', 0, -1),
-        'w': ('lower', 1,  1), 's': ('lower', 1, -1),
-        'e': ('lower', 2,  1), 'd': ('lower', 2, -1),
-        'r': ('upper', 0,  1), 'f': ('upper', 0, -1),
-        't': ('upper', 1,  1), 'g': ('upper', 1, -1),
-        'y': ('upper', 2,  1), 'h': ('upper', 2, -1),
-    }
-    RED_ONLY_ACTIONS = {
-        'u': ('lower2', 0,  1), 'j': ('lower2', 0, -1),
-        'i': ('lower2', 1,  1), 'k': ('lower2', 1, -1),
-        'o': ('lower2', 2,  1), 'l': ('lower2', 2, -1),
-        'z': ('upper2', 0,  1), 'x': ('upper2', 0, -1),
-        'c': ('upper2', 1,  1), 'v': ('upper2', 1, -1),
-        'b': ('upper2', 2,  1), 'n': ('upper2', 2, -1),
-    }
+    print(f'mode={mode}  distance={distance:.1f}')
 
     try:
         while rclpy.ok():
@@ -139,18 +138,23 @@ def main(args=None):
                 break
             elif key == 'm':
                 mode = {'red': 'green', 'green': 'blue', 'blue': 'red'}[mode]
-                print_bounds()
-            elif key in KEY_ACTIONS:
-                field, idx, delta = KEY_ACTIONS[key]
-                BOUNDS[mode][field][idx] = int(
-                    np.clip(BOUNDS[mode][field][idx] + delta, 0, 255))
-                print_bounds()
-            elif key in RED_ONLY_ACTIONS and mode == 'red':
-                field, idx, delta = RED_ONLY_ACTIONS[key]
-                BOUNDS['red'][field][idx] = int(
-                    np.clip(BOUNDS['red'][field][idx] + delta, 0, 255))
-                print_bounds()
+                print(f'mode={mode}  distance={distance:.1f}')
+            elif key == 'r':
+                distance = 0.3
+                print(f'distance reset -> {distance:.1f}  mode={mode}')
+            elif key == ' ':
+                h = node.last_rect_h
+                h_str = f'{h:.1f}' if h is not None else ''
+                _data_rows.append([mode, f'{distance:.1f}', h_str])
+                _write_csv(csv_file)
+                print(f'Logged: color={mode}  distance={distance:.1f}  rect_h={h_str}')
+                distance = round(distance + 0.2, 1)
     finally:
+        ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        base, ext = os.path.splitext(csv_file)
+        ts_path = f'{base}_{ts}{ext}'
+        _write_csv(ts_path)
+        print(f'Saved timestamped copy: {ts_path}')
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         node.destroy_node()
         rclpy.shutdown()

@@ -12,6 +12,7 @@ data_files.append(('share/' + package_name + '/worlds/meshes', ['worlds/meshes/b
 data_files.append(('share/' + package_name + '/resource', ['resource/my_robot.urdf']))
 data_files.append(('share/' + package_name + '/scripts', ['scripts/generate_block_info.py']))
 data_files.append(('share/' + package_name + '/worlds', ['worlds/block_info.yaml']))
+data_files.append(('share/' + package_name, ['block_distance_testing.csv']))
 data_files.append(('share/' + package_name, ['package.xml']))
 
 setup(
@@ -33,6 +34,7 @@ setup(
             'basic_autonomy_node = enpm701_simulation.basic_autonomy_node:main',
             'colorpicker_node = enpm701_simulation.colorpicker_node:main',
             'boundingboxes_node = enpm701_simulation.boundingboxes_node:main',
+            'distance_calibration_node = enpm701_simulation.distance_calibration_node:main',
         ],
     },
 )

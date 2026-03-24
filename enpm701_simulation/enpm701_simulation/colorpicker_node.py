@@ -29,10 +29,10 @@ Controls:
 """
 
 BOUNDS = {
-    'red':   {'lower': np.array([171, 138, 47]), 'upper': np.array([255, 255, 255]),
-              'lower2': np.array([0, 175, 193]),  'upper2': np.array([46, 255, 255])},
+    'red':   {'lower': np.array([171, 145, 47]), 'upper': np.array([255, 255, 255]),
+              'lower2': np.array([0, 175, 193]),  'upper2': np.array([10, 255, 255])},
     'green': {'lower': np.array([39, 0, 10]),     'upper': np.array([92, 255, 255])},
-    'blue':  {'lower': np.array([68, 0, 10]),     'upper': np.array([130, 255, 255])},
+    'blue':  {'lower': np.array([100, 109, 5]),     'upper': np.array([130, 255, 255])},
 }
 
 mode = 'red'

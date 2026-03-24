@@ -1,0 +1,12 @@
+bound,H,S,V
+red lower 1,,,
+red upper 1,,,
+red lower 2,,,
+red upper 2,,,
+green lower,,,
+green upper,,,
+blue lower,,,
+blue upper,,,
+,,,
+color,distance [m],h [pixels],
+,,
