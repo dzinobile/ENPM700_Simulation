@@ -87,16 +87,17 @@ class BoundingBoxes(Node):
         if len(contours) > 0:
             rect = cv2.minAreaRect(contours[0])
             (rect_x, rect_y),(rect_w, rect_h), rect_a = rect
-            if rect_w > rect_h:
-                rect_w, rect_h = rect_h, rect_w
-            box = cv2.boxPoints(rect)
-            box = np.int0(box)
-            cv_img = cv2.drawContours(cv_img, [box], 0, (0, 0, 0), 1)
-            centroid = (int(rect_x), int(rect_y))
-            cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
-            distance = n*(rect_h**e)
-            cv2.putText(cv_img, f"d={distance:.2f}m", (centroid[0]+5, centroid[1]-5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+            if rect_a > 25:
+                if rect_w > rect_h:
+                    rect_w, rect_h = rect_h, rect_w
+                box = cv2.boxPoints(rect)
+                box = np.int0(box)
+                cv_img = cv2.drawContours(cv_img, [box], 0, (0, 0, 0), 1)
+                centroid = (int(rect_x), int(rect_y))
+                cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
+                distance = n*(rect_h**e)
+                cv2.putText(cv_img, f"d={distance:.2f}m", (centroid[0]+5, centroid[1]-5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
         cv2.putText(cv_img, f"mode: {mode}", (10, 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         self._image_pub.publish(self._bridge.cv2_to_imgmsg(cv_img))

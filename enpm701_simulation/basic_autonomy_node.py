@@ -3,11 +3,9 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image, Imu
 from std_msgs.msg import Float64
-from std_msgs.msg import String
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
-from rclpy.duration import Duration
 import itertools
 
 
@@ -137,6 +135,21 @@ class BasicAutonomyNode(Node):
         distance_error = np.sqrt((x2-x1)**2 + (y2-y1)**2)
         cmd_msg.linear.x = -min(self._linear_speed, distance_error * self._linear_speed)
         return distance_error, cmd_msg
+        
+    # def move_to_point(self, point):
+    #     x2, y2 = point[0], point[1]
+    #     x1, y1 = self._robot_pos[0], self._robot_pos[1]
+    #     req_angle = np.arctan2((y2-y1),(x2-x1))
+    #     cmd_msg = Twist()
+    #     angle_error = self._robot_pos[2] - req_angle
+    #     angle_error = np.arctan2(np.sin(angle_error), np.cos(angle_error))
+    #     distance_error = np.sqrt((x2-x1)**2 + (y2-y1)**2)
+    #     normalized_angle_error = angle_error / np.pi
+    #     cmd_msg.angular.z = -self._angular_speed * normalized_angle_error
+
+    #     cmd_msg.linear.x = distance_error * self._linear_speed * np.exp(-30 * abs(normalized_angle_error))
+
+    #     return distance_error, cmd_msg
 
     def state_behavior(self, rect_x, rect_y, cols):
         cmd_msg = Twist()

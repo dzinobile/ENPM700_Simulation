@@ -7,6 +7,8 @@ import numpy as np
 from std_msgs.msg import Float64
 
 
+CLUSTER_THRESHOLD = 0.3  # metres — detections within this radius merge into one block
+
 BOUNDS = {
     'red':   {'lower': np.array([171, 145, 47]), 'upper': np.array([255, 255, 255]),
               'lower2': np.array([0, 175, 193]),  'upper2': np.array([10, 255, 255])},
@@ -33,6 +35,8 @@ class BlockTracker(Node):
         self._robot_pos = [-1.2192, -1.2192, 0.0]
         self._left_wheel_distance = 0.0
         self._right_wheel_distance = 0.0
+        # Each entry: {'x_sum': float, 'y_sum': float, 'count': int}
+        self._block_positions = {'red': [], 'green': [], 'blue': []}
 
     def left_encoder_callback(self, msg):
         self._left_wheel_pos = msg.data
@@ -82,6 +86,22 @@ class BlockTracker(Node):
         block_y = self._robot_pos[1] + (block_distance * np.sin(block_angle))
         return block_x, block_y
     
+    def update_block_position(self, color, x, y):
+        clusters = self._block_positions[color]
+        best, best_dist = None, float('inf')
+        for cluster in clusters:
+            cx = cluster['x_sum'] / cluster['count']
+            cy = cluster['y_sum'] / cluster['count']
+            d = np.hypot(x - cx, y - cy)
+            if d < best_dist:
+                best, best_dist = cluster, d
+        if best is not None and best_dist < CLUSTER_THRESHOLD:
+            best['x_sum'] += x
+            best['y_sum'] += y
+            best['count'] += 1
+        else:
+            clusters.append({'x_sum': x, 'y_sum': y, 'count': 1})
+
     def xy_to_pixel(self, x, y):
         pixel_x = int((x + (3.048/2)) / 3.048 * 500)
         pixel_y = 500 - int((y + (3.048/2)) / 3.048 * 500)
@@ -104,40 +124,55 @@ class BlockTracker(Node):
         self.update_position()
         cv_img = self._bridge.imgmsg_to_cv2(ros_img)
         hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
+        color_bgr = {'red': (0, 0, 255), 'green': (0, 255, 0), 'blue': (255, 0, 0)}
+
         for color in ['red', 'green', 'blue']:
             b = BOUNDS[color]
+            bgr = color_bgr[color]
             if color == 'red':
                 mask = cv2.bitwise_or(
                     cv2.inRange(hsv, b['lower'], b['upper']),
                     cv2.inRange(hsv, b['lower2'], b['upper2'])
                 )
-                c = (0, 0, 255)
-            elif color == 'green':
-                mask = cv2.inRange(hsv, b['lower'], b['upper'])
-                c = (0, 255, 0)
             else:
                 mask = cv2.inRange(hsv, b['lower'], b['upper'])
-                c = (255, 0, 0)
-            block_positions = []
+
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            if len(contours) > 0:
-                for i in range(0, min(3, len(contours))):
-                    rect = cv2.minAreaRect(contours[i])
-                    (rect_x, rect_y),(rect_w, rect_h), rect_a = rect
-                    if rect_a > 25:
-                        if rect_w > rect_h:
-                            rect_w, rect_h = rect_h, rect_w
-                        box = cv2.boxPoints(rect)
-                        box = np.int0(box)
-                        cv_img = cv2.drawContours(cv_img, [box], 0, c, 1)
-                        centroid = (int(rect_x), int(rect_y))
-                        cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
-                        block_position = self.estimate_block_position(rect_x, rect_h)
-                        block_positions.append((c, block_position[0], block_position[1]))
-                        cv2.putText(cv_img, f"{color} block at ({block_position[0]:.2f}, {block_position[1]:.2f})", (centroid[0]+5, centroid[1]-5),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
-                self._image_pub.publish(self._bridge.cv2_to_imgmsg(cv_img))
-                self.publish_map(block_positions)
+            for i in range(min(3, len(contours))):
+                rect = cv2.minAreaRect(contours[i])
+                (rect_x, rect_y), (rect_w, rect_h), rect_a = rect
+                if rect_a > 25:
+                    if rect_w > rect_h:
+                        rect_w, rect_h = rect_h, rect_w
+                    box = cv2.boxPoints(rect)
+                    box = np.int0(box)
+                    cv_img = cv2.drawContours(cv_img, [box], 0, bgr, 1)
+                    centroid = (int(rect_x), int(rect_y))
+                    cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
+
+                    raw_x, raw_y = self.estimate_block_position(rect_x, rect_h)
+                    self.update_block_position(color, raw_x, raw_y)
+
+                    # display the averaged position of the cluster this detection joined
+                    nearest = min(
+                        self._block_positions[color],
+                        key=lambda cl: np.hypot(raw_x - cl['x_sum'] / cl['count'],
+                                                raw_y - cl['y_sum'] / cl['count'])
+                    )
+                    avg_x = nearest['x_sum'] / nearest['count']
+                    avg_y = nearest['y_sum'] / nearest['count']
+                    cv2.putText(cv_img, f"{color} ({avg_x:.2f},{avg_y:.2f}) n={nearest['count']}",
+                                (centroid[0] + 5, centroid[1] - 5),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+
+        # publish camera image and map from all averaged clusters
+        map_positions = [
+            (color_bgr[color], cl['x_sum'] / cl['count'], cl['y_sum'] / cl['count'])
+            for color, clusters in self._block_positions.items()
+            for cl in clusters
+        ]
+        self._image_pub.publish(self._bridge.cv2_to_imgmsg(cv_img))
+        self.publish_map(map_positions)
 
 
 def main(args=None):

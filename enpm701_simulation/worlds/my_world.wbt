@@ -64,6 +64,39 @@ SolidBox {
     metalness 0
   }
 }
+SolidBox {
+  name "floor1"
+  translation 0.3048 -1.2192 0.0005
+  size  2.4384 0.6096 0.001
+  appearance PBRAppearance {
+    baseColor 0.5 0.5 0.5
+    roughness 1
+    metalness 0 
+    transparency 0.8
+  }
+}
+SolidBox {
+  name "floor2"
+  translation 0 -0.3048 0.0005
+  size 3.048 1.2192 0.001
+  appearance PBRAppearance {
+    baseColor 0.5 0.5 0.5
+    roughness 1
+    metalness 0 
+    transparency 0.8
+  }
+}
+SolidBox {
+  name "floor3"
+  translation 0.6096 0.9144 0.0005
+  size 1.8288 1.2192 0.001
+  appearance PBRAppearance {
+    baseColor 0.5 0.5 0.5
+    roughness 1
+    metalness 0
+    transparency 0.8
+  }
+}
 CustomBot {
   translation -1.2192 -1.2192 0.005
   controller "<extern>"
