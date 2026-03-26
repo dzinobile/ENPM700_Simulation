@@ -97,22 +97,22 @@ SolidBox {
     transparency 0.8
   }
 }
+SolidBox {
+  name "floor4"
+  translation 0 0 0.001
+  size 3.048 3.048 0.01
+  appearance PBRAppearance {
+    baseColor 0.5 0.5 0.5
+    roughness 1
+    metalness 0 
+    transparency 1
+  }
+}
 CustomBot {
-  translation -1.2192 -1.2192 0.005
+  translation -1.2192 -1.2192 0.01
   controller "<extern>"
   controllerArgs [
     ""
   ]
 }
-Block {
-  translation 0.0 0.0 0.005
-  color 0 0 1
-}
-Block {
-  translation -0.6 -0.3 0.005
-  color 1 0 0
-}
-Block {
-  translation 0.3 0.3 0.005
-  color 0 1 0
-}
+

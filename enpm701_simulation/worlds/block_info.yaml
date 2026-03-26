@@ -1,27 +1,27 @@
 block_1:
   color: 1 0 0
-  translation: 0 0 0.005
+  translation: 0 0 0.01
 block_2:
   color: 0 1 0
-  translation: 0 0 0.005
+  translation: 0 0 0.01
 block_3:
   color: 0 0 1
-  translation: 0 0 0.005    
+  translation: 0 0 0.01    
 block_4:
   color: 1 0 0
-  translation: 0 0 0.005
+  translation: 0 0 0.01
 block_5:
   color: 0 1 0
-  translation: 0 0 0.005
+  translation: 0 0 0.01
 block_6:
   color: 0 0 1
-  translation: 0 0 0.005
+  translation: 0 0 0.01
 block_7:
   color: 1 0 0
-  translation: 0 0 0.005
+  translation: 0 0 0.01
 block_8:
   color: 0 1 0
-  translation: 0 0 0.005
+  translation: 0 0 0.01
 block_9:
   color: 0 0 1
-  translation: 0 0 0.005
+  translation: 0 0 0.01
