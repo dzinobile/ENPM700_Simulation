@@ -36,6 +36,7 @@ setup(
             'boundingboxes_node = enpm701_simulation.boundingboxes_node:main',
             'distance_calibration_node = enpm701_simulation.distance_calibration_node:main',
             'block_tracker_node = enpm701_simulation.block_tracker_node:main',
+            'path_planner_node = enpm701_simulation.path_planner_node:main',
         ],
     },
 )

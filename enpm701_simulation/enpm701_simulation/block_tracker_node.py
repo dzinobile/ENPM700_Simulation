@@ -5,6 +5,7 @@ import cv2
 from cv_bridge import CvBridge
 import numpy as np
 from std_msgs.msg import Float64
+from visualization_msgs.msg import Marker, MarkerArray
 
 
 CLUSTER_THRESHOLD = 0.3  # metres — detections within this radius merge into one cluster
@@ -41,6 +42,7 @@ class BlockTracker(Node):
         self._block_positions = {'red': [], 'green': [], 'blue': []}
         # Pending detections not yet confirmed; each entry: {'x': float, 'y': float, 'streak': int}
         self._candidates = {'red': [], 'green': [], 'blue': []}
+        self._marker_array_pub = self.create_publisher(MarkerArray, 'block_markers', 1)
 
     def left_encoder_callback(self, msg):
         self._left_wheel_pos = msg.data
@@ -58,6 +60,39 @@ class BlockTracker(Node):
         cosy_cosp = 1 - 2 * (y**2 + z**2)
         yaw = np.arctan2(siny_cosp, cosy_cosp)
         return yaw
+    
+    def publish_marker_array(self, block_positions):
+        marker_array = MarkerArray()
+        for i, (color, x, y) in enumerate(block_positions):
+            marker = Marker()
+            marker.header.frame_id = "map"
+            marker.id = i
+            marker.type = Marker.SPHERE
+            marker.action = Marker.ADD
+            marker.pose.position.x = x
+            marker.pose.position.y = y
+            marker.pose.position.z = 0.05
+            marker.pose.orientation.x = 0.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = 0.0
+            marker.pose.orientation.w = 1.0
+            marker.scale.x = 0.1
+            marker.scale.y = 0.1
+            marker.scale.z = 0.1
+            if color == (255, 0, 0):    # blue in BGR
+                marker.color.b = 1.0
+                marker.ns = "blue"
+            elif color == (0, 255, 0):  # green in BGR
+                marker.color.g = 1.0
+                marker.ns = "green"
+            elif color == (0, 0, 255):  # red in BGR
+                marker.color.r = 1.0
+                marker.ns = "red"
+            else:
+                continue
+            marker.color.a = 1.0  
+            marker_array.markers.append(marker)
+        self._marker_array_pub.publish(marker_array)
 
     def update_position(self):
         new_left_total_distance = (0.032 * self._left_wheel_pos)
@@ -112,7 +147,7 @@ class BlockTracker(Node):
         return pixel_x, pixel_y
 
     def publish_map(self, block_positions):
-        map_img = np.zeros((500, 500, 3), dtype=np.uint8) * 255
+        map_img = np.full((500, 500, 3), 255, dtype=np.uint8)
         robot_x, robot_y = self.xy_to_pixel(self._robot_pos[0], self._robot_pos[1])
         cv2.rectangle(map_img, (0, 0), (199, 200), (100, 100, 100), -1)
         cv2.rectangle(map_img, (0, 500), (100, 400), (100, 100, 100), -1)
@@ -222,6 +257,7 @@ class BlockTracker(Node):
         ]
         self._image_pub.publish(self._bridge.cv2_to_imgmsg(cv_img))
         self.publish_map(map_positions)
+        self.publish_marker_array(map_positions)
 
 
 def main(args=None):
