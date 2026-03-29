@@ -12,19 +12,20 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from webots_ros2_driver.webots_controller import WebotsController
 from webots_ros2_driver.webots_launcher import WebotsLauncher
-
+from launch.actions import DeclareLaunchArgument
 
 def launch_setup(context, *args, **kwargs):
     package_dir = get_package_share_directory('enpm701_simulation')
 
     # --- Step 1: run generate_block_info to randomise block_info.yaml ---
-    script_path = os.path.join(package_dir, 'scripts', 'generate_block_info.py')
-    spec = importlib.util.spec_from_file_location('generate_block_info', script_path)
-    gen_mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(gen_mod)
-
     block_info_path = os.path.join(package_dir, 'worlds', 'block_info.yaml')
-    gen_mod.generate(block_info_path)
+    randomize_blocks = context.launch_configurations.get('randomize_blocks', 'true').lower() == 'true'
+    if randomize_blocks:
+        script_path = os.path.join(package_dir, 'scripts', 'generate_block_info.py')
+        spec = importlib.util.spec_from_file_location('generate_block_info', script_path)
+        gen_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gen_mod)
+        gen_mod.generate(block_info_path)
 
     # --- Step 2: read generated block positions ---
     with open(block_info_path) as f:
@@ -101,5 +102,10 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'randomize_blocks',
+            default_value='true',
+            description='Whether to randomize block positions each run by regenerating block_info.yaml',
+        ),
         launch.actions.OpaqueFunction(function=launch_setup),
     ])
