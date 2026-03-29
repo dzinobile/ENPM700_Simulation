@@ -13,6 +13,10 @@ CLUSTER_THRESHOLD = 0.3  # metres — detections within this radius merge into o
 CONFIRM_FRAMES = 10      # consecutive frames a detection must be stable before counting
 EDGE_MARGIN = 40         # pixels — centroids closer than this to any edge are skipped
 
+# Construction zone — estimated block positions inside this rectangle are ignored
+CONSTRUCTION_X = (-1.524, -0.3048)  # (min_x, max_x)
+CONSTRUCTION_Y = (0.3048,  1.524)   # (min_y, max_y)
+
 BOUNDS = {
     'red':   {'lower': np.array([171, 145, 47]), 'upper': np.array([255, 255, 255]),
               'lower2': np.array([0, 175, 193]),  'upper2': np.array([10, 255, 255])},
@@ -221,6 +225,9 @@ class BlockTracker(Node):
                                 rect_y < EDGE_MARGIN or rect_y > 480 - EDGE_MARGIN):
                             continue  # centroid too close to edge — block likely partially out of frame
                         raw_x, raw_y = self.estimate_block_position(rect_x, rect_h)
+                        if (CONSTRUCTION_X[0] <= raw_x <= CONSTRUCTION_X[1] and
+                                CONSTRUCTION_Y[0] <= raw_y <= CONSTRUCTION_Y[1]):
+                            continue  # projected position inside construction zone
                         frame_detections.append((rect, rect_x, rect_h, raw_x, raw_y))
 
                 # Match each candidate to the nearest unmatched detection this frame.

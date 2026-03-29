@@ -123,7 +123,7 @@ class FinalChallengeNode(Node):
 
     def _back_away_from_dropoff(self):
         cmd_msg = Twist()
-        if abs(self._robot_pos[1] - self._checkpoint_pos[1]) >= self._dropoff_distance:
+        if abs(self._robot_pos[1] - self._checkpoint_pos[1]) >= self._dropoff_distance+0.3048:
             self._current_state = "scan for blocks"
             cmd_msg.linear.x = 0.0
             cmd_msg.angular.z = 0.0
