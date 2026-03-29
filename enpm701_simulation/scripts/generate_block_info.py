@@ -8,14 +8,14 @@ import random
 import yaml
 
 # Arena bounds: 3.048 x 3.048 centered at origin, minus wall margin
-_WALL_MARGIN = 0.08
+_WALL_MARGIN = 0.1
 _X_MIN = -1.524 + _WALL_MARGIN
 _X_MAX = 1.524 - _WALL_MARGIN
 _Y_MIN = -1.524 + _WALL_MARGIN
 _Y_MAX = 1.524 - _WALL_MARGIN
 
 # Extra clearance added to each zone boundary so blocks aren't right on the edge
-_ZONE_CLEARANCE = 0.05
+_ZONE_CLEARANCE = 0.1
 
 # Construction zone: center (-0.9144, 0.9144), size 1.2192 x 1.2192
 _CONSTRUCTION_ZONE = {

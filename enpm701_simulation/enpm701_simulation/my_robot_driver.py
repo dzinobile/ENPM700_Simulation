@@ -35,27 +35,27 @@ class MyRobotDriver:
         self.__right_gripper_slider_motor.setVelocity(0.5)
 
         self.__target_twist = Twist()
-        self.__gripper_twist = Twist()
+        self.__gripper_msg = Float64()
 
         rclpy.init(args=None)
         self.__node = rclpy.create_node('my_robot_driver')
         self.__node.create_subscription(Twist, 'cmd_vel', self.__cmd_vel_callback, 1)
-        self.__node.create_subscription(Twist, 'gripper_vel', self.__gripper_vel_callback, 1)
+        self.__node.create_subscription(Float64, 'cmd_grip', self.__cmd_grip_callback, 1)
         self.__left_wheel_pos_pub = self.__node.create_publisher(Float64, 'wheel_position/left', 1)
         self.__right_wheel_pos_pub = self.__node.create_publisher(Float64, 'wheel_position/right', 1)
 
     def __cmd_vel_callback(self, twist):
         self.__target_twist = twist
     
-    def __gripper_vel_callback(self, twist):
-        self.__gripper_twist = twist
+    def __cmd_grip_callback(self, grip):
+        self.__gripper_msg.data = grip.data
 
     def step(self):
         rclpy.spin_once(self.__node, timeout_sec=0)
 
         forward_speed = self.__target_twist.linear.x
         angular_speed = self.__target_twist.angular.z
-        gripper_position = self.__gripper_twist.linear.x
+        gripper_position = self.__gripper_msg.data
 
         command_motor_left_back = (forward_speed - angular_speed * HALF_DISTANCE_BETWEEN_WHEELS) / WHEEL_RADIUS
         command_motor_right_back = (forward_speed + angular_speed * HALF_DISTANCE_BETWEEN_WHEELS) / WHEEL_RADIUS

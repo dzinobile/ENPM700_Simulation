@@ -4,9 +4,12 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
 from nav_msgs.msg import OccupancyGrid, Path
-from geometry_msgs.msg import PoseStamped
+from nav_msgs.srv import GetPlan
+from geometry_msgs.msg import PoseStamped, Pose2D
 from visualization_msgs.msg import MarkerArray
 import numpy as np
+
+
 
 
 # Arena is 3.048 x 3.048 m, centred at origin
@@ -28,6 +31,23 @@ def cell_to_world(col, row):
     x = ORIGIN + (col + 0.5) * RESOLUTION
     y = ORIGIN + (row + 0.5) * RESOLUTION
     return x, y
+
+
+def nearest_free_cell(grid, cell):
+    """BFS from cell outward; return the closest unoccupied cell."""
+    from collections import deque
+    visited = {cell}
+    queue = deque([cell])
+    while queue:
+        c = queue.popleft()
+        if grid[c[1] * GRID_N + c[0]] < 100:
+            return c
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nc = (c[0] + dx, c[1] + dy)
+            if 0 <= nc[0] < GRID_N and 0 <= nc[1] < GRID_N and nc not in visited:
+                visited.add(nc)
+                queue.append(nc)
+    return None
 
 
 def astar(grid, start, goal):
@@ -73,35 +93,24 @@ class PathPlanner(Node):
     def __init__(self):
         super().__init__('path_planner_node')
 
-        # Which color block to navigate to
-        self.declare_parameter('target_color', 'red')
-        self._target_color = self.get_parameter('target_color').get_parameter_value().string_value
-
-        # Robot odometry state (mirrored from block_tracker logic)
-        self._robot_pos = [-1.2192, -1.2192, 0.0]   # [x, y, yaw]
-        self._left_wheel_pos = 0.0
-        self._right_wheel_pos = 0.0
-        self._left_wheel_distance = 0.0
-        self._right_wheel_distance = 0.0
-        self._imu_msg = Imu()
+        self._robot_pos = [0.0, 0.0, 0.0]  # x, y, theta
 
         # Block positions received from block_tracker_node, keyed by color name
         self._blocks = {'red': [], 'green': [], 'blue': []}  # list of (x, y) per color
 
         # Subscriptions
         self.create_subscription(MarkerArray, 'block_markers', self._markers_cb, 1)
-        self.create_subscription(Float64, 'wheel_position/left',  self._left_enc_cb,  1)
-        self.create_subscription(Float64, 'wheel_position/right', self._right_enc_cb, 1)
-        self.create_subscription(Imu, 'imu', self._imu_cb, 1)
-
-        # Publishers
+        self.create_subscription(Pose2D, 'robot_position', self._position_cb, 1)
+        # Publishers (visualisation only)
         self._path_pub = self.create_publisher(Path, 'planned_path', 1)
         self._grid_pub = self.create_publisher(OccupancyGrid, 'occupancy_grid', 1)
 
-        # Re-plan at 1 Hz whenever marker data is available
-        self.create_timer(1.0, self._plan)
+        # Service — autonomous_routine calls this to request a path to a goal pose
+        self.create_service(GetPlan, 'plan_path', self._plan_cb)
 
     # ── odometry callbacks ────────────────────────────────────────────────────
+    def _position_cb(self, msg):
+        self._robot_pos = [msg.x, msg.y, msg.theta]
 
     def _left_enc_cb(self, msg):
         self._left_wheel_pos = msg.data
@@ -112,24 +121,6 @@ class PathPlanner(Node):
     def _imu_cb(self, msg):
         self._imu_msg = msg
 
-    def _update_position(self):
-        new_left  = 0.032 * self._left_wheel_pos
-        new_right = 0.032 * self._right_wheel_pos
-        dl = new_left  - self._left_wheel_distance
-        dr = new_right - self._right_wheel_distance
-        self._left_wheel_distance  = new_left
-        self._right_wheel_distance = new_right
-
-        q = self._imu_msg.orientation
-        norm = np.sqrt(q.w**2 + q.x**2 + q.y**2 + q.z**2)
-        if norm == 0:
-            return
-        w, x, y, z = q.w/norm, q.x/norm, q.y/norm, q.z/norm
-        yaw = np.arctan2(2*(w*z + x*y), 1 - 2*(y**2 + z**2))
-        dist = (dl + dr) / 2.0
-        self._robot_pos[0] += dist * np.cos(yaw)
-        self._robot_pos[1] += dist * np.sin(yaw)
-        self._robot_pos[2]  = yaw
 
     # ── marker callback ───────────────────────────────────────────────────────
 
@@ -143,15 +134,20 @@ class PathPlanner(Node):
 
     # ── grid building ─────────────────────────────────────────────────────────
 
-    def _build_grid(self, target_color):
-        """Return flat OccupancyGrid data with non-target blocks as obstacles."""
-        data = [0] * (GRID_N * GRID_N)
+    def _build_grid(self, exclude_pos=None):
+        """Return flat OccupancyGrid data with all blocks as obstacles.
 
-        for color, positions in self._blocks.items():
-            if color == target_color:
-                continue  # target blocks are goals, not obstacles
+        exclude_pos: (x, y) world position of the goal block — its cell is left
+        free so A* can reach it.
+        """
+        data = [0] * (GRID_N * GRID_N)
+        exclude_cell = world_to_cell(*exclude_pos) if exclude_pos else None
+
+        for positions in self._blocks.values():
             for bx, by in positions:
                 cc, rc = world_to_cell(bx, by)
+                if (cc, rc) == exclude_cell:
+                    continue
                 for dc in range(-INFLATE_RADIUS, INFLATE_RADIUS + 1):
                     for dr in range(-INFLATE_RADIUS, INFLATE_RADIUS + 1):
                         nc, nr = cc + dc, rc + dr
@@ -173,51 +169,51 @@ class PathPlanner(Node):
         grid.data = data
         self._grid_pub.publish(grid)
 
-    # ── path planning ─────────────────────────────────────────────────────────
+    # ── service callback ──────────────────────────────────────────────────────
 
-    def _plan(self):
-        self._update_position()
+    def _plan_cb(self, request, response):
+        """GetPlan service: request.goal is the target pose; returns response.plan."""
+ 
 
-        targets = self._blocks.get(self._target_color, [])
-        if not targets:
-            return  # no confirmed blocks of target color yet
+        gx = request.goal.pose.position.x
+        gy = request.goal.pose.position.y
 
-        grid = self._build_grid(self._target_color)
+        grid = self._build_grid(exclude_pos=(gx, gy))
         self._publish_grid(grid)
 
         start = world_to_cell(self._robot_pos[0], self._robot_pos[1])
+        goal  = world_to_cell(gx, gy)
 
-        # Try each target block, keep the shortest path
-        best_path = None
-        for tx, ty in targets:
-            goal = world_to_cell(tx, ty)
-            path = astar(grid, start, goal)
-            if path is not None:
-                if best_path is None or len(path) < len(best_path):
-                    best_path = path
+        # If goal cell is occupied (e.g. drop-off inside an obstacle zone),
+        # find the nearest free cell instead
+        if grid[goal[1] * GRID_N + goal[0]] >= 100:
+            goal = nearest_free_cell(grid, goal)
 
-        if best_path is None:
-            self.get_logger().warn(f'No path found to any {self._target_color} block')
-            return
+        if goal is None:
+            self.get_logger().warn('No reachable goal cell found')
+            return response  # empty path
 
-        self._publish_path(best_path)
+        cell_path = astar(grid, start, goal)
+        if cell_path is None:
+            self.get_logger().warn(f'No path found to ({gx:.2f}, {gy:.2f})')
+            return response  # empty path
 
-    def _publish_path(self, cell_path):
-        msg = Path()
-        msg.header.frame_id = 'map'
-        msg.header.stamp = self.get_clock().now().to_msg()
+        response.plan.header.frame_id = 'map'
+        response.plan.header.stamp = self.get_clock().now().to_msg()
         for col, row in cell_path:
             wx, wy = cell_to_world(col, row)
             pose = PoseStamped()
-            pose.header = msg.header
+            pose.header = response.plan.header
             pose.pose.position.x = wx
             pose.pose.position.y = wy
             pose.pose.orientation.w = 1.0
-            msg.poses.append(pose)
-        self._path_pub.publish(msg)
+            response.plan.poses.append(pose)
+
         self.get_logger().info(
-            f'Path to {self._target_color} block: {len(cell_path)} cells '
+            f'Path to ({gx:.2f},{gy:.2f}): {len(cell_path)} cells '
             f'({len(cell_path) * RESOLUTION:.2f} m)')
+        self._path_pub.publish(response.plan)  # visualisation
+        return response
 
 
 def main(args=None):

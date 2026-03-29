@@ -4,6 +4,7 @@ package_name = 'enpm701_simulation'
 data_files = []
 data_files.append(('share/ament_index/resource_index/packages', ['resource/' + package_name]))
 data_files.append(('share/' + package_name + '/launch', ['launch/robot_launch.py']))
+data_files.append(('share/' + package_name + '/launch', ['launch/final_challenge_launch.py']))
 data_files.append(('share/' + package_name + '/worlds', ['worlds/my_world.wbt']))
 data_files.append(('share/' + package_name + '/worlds', ['worlds/CustomBot.proto']))
 data_files.append(('share/' + package_name + '/worlds', ['worlds/Block.proto']))
@@ -37,6 +38,7 @@ setup(
             'distance_calibration_node = enpm701_simulation.distance_calibration_node:main',
             'block_tracker_node = enpm701_simulation.block_tracker_node:main',
             'path_planner_node = enpm701_simulation.path_planner_node:main',
+            'final_challenge_node = enpm701_simulation.final_challenge_node:main',
         ],
     },
 )
