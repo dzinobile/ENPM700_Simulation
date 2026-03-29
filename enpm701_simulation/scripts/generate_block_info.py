@@ -33,7 +33,7 @@ _BUFFER_ZONE = {
     'y_max': -0.9144 + _ZONE_CLEARANCE,
 }
 
-_MIN_SEPARATION = 0.3
+_MIN_SEPARATION = 0.6096
 _Z = 0.005
 _COLORS = ['1 0 0', '0 1 0', '0 0 1']  # red, green, blue
 

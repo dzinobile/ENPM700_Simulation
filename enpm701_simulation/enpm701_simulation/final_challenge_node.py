@@ -91,21 +91,43 @@ class FinalChallengeNode(Node):
     def _execute(self):
         print(self._current_state)
         if self._current_state == "scan for blocks":
+            self._tracking_active_pub.publish(Bool(data=True))
             self._scan_for_blocks()
+            self.get_logger().info("scanning for blocks...")
         elif self._current_state == "go to block":
+            self._tracking_active_pub.publish(Bool(data=True))
             self._go_to_block()
+            self.get_logger().info("going to block")
+
         elif self._current_state == "align with block":
+            self._tracking_active_pub.publish(Bool(data=False))
             self._align_with_block()
+            self.get_logger().info("aligning with block")
+
         elif self._current_state == "grip block":
+            self._tracking_active_pub.publish(Bool(data=False))
             self._grip_block()
+            self.get_logger().info("gripping block")
+
         elif self._current_state == "go to dropoff":
+            self._tracking_active_pub.publish(Bool(data=False))
             self._go_to_dropoff()
+            self.get_logger().info("going to dropoff")
+
         elif self._current_state == "align with dropoff":
+            self._tracking_active_pub.publish(Bool(data=False))
             self._align_with_dropoff()
+            self.get_logger().info("aligning with dropoff")
+
         elif self._current_state == "release block":
+            self._tracking_active_pub.publish(Bool(data=False))
             self._release_block()
+            self.get_logger().info("releasing block")
+
         elif self._current_state == "back away from dropoff":
+            self._tracking_active_pub.publish(Bool(data=False))
             self._back_away_from_dropoff()
+            self.get_logger().info("backing away from dropoff")
         else:
             self.get_logger().error(f"Unknown state: {self._current_state}")
 
@@ -119,11 +141,10 @@ class FinalChallengeNode(Node):
             cmd_msg.angular.z = self._angular_speed/2.0
 
         self._cmd_vel_pub.publish(cmd_msg)
-        self._tracking_active_pub.publish(Bool(data=True))
 
     def _back_away_from_dropoff(self):
         cmd_msg = Twist()
-        if abs(self._robot_pos[1] - self._checkpoint_pos[1]) >= self._dropoff_distance+0.3048:
+        if abs(self._robot_pos[1] - self._checkpoint_pos[1]) >= 0.3048:
             self._current_state = "scan for blocks"
             cmd_msg.linear.x = 0.0
             cmd_msg.angular.z = 0.0
@@ -135,10 +156,8 @@ class FinalChallengeNode(Node):
             cmd_msg.linear.x = -self._linear_speed
             cmd_msg.angular.z = 0.0
             self._cmd_vel_pub.publish(cmd_msg)
-        self._tracking_active_pub.publish(Bool(data=False))
     
-    def request_path(self, goal_x, goal_y):
-        self._tracking_active_pub.publish(Bool(data=True))  
+    def request_path(self, goal_x, goal_y): 
         if not self._plan_client.service_is_ready():
             self.get_logger().warn('plan_path service not available')
             return None
@@ -156,7 +175,7 @@ class FinalChallengeNode(Node):
         
     
     def _grip_block(self):
-        self._tracking_active_pub.publish(Bool(data=False))
+
         grip_msg = Float64()
         grip_msg.data = 0.03  # Adjust as needed for your gripper
         self._grip_pub.publish(grip_msg)
@@ -165,7 +184,6 @@ class FinalChallengeNode(Node):
             self._current_state = "go to dropoff"
     
     def _align_with_block(self):
-        self._tracking_active_pub.publish(Bool(data=False))
         if self._block_frame_position is None:
             return  # no block visible yet — wait for camera callback
         cmd_msg = Twist()
@@ -184,6 +202,7 @@ class FinalChallengeNode(Node):
                 m.pose.position.x = self._target_block_pos[0]
                 m.pose.position.y = self._target_block_pos[1]
                 self._remove_block_pub.publish(m)
+
         else:
             normalised_angle_error = (rect_x - 640 / 2.0) / (640 / 2.0)
             normalised_speed_error = ((1 - abs(normalised_angle_error))/2.0) * ((450 - rect_y)/450)
@@ -195,7 +214,6 @@ class FinalChallengeNode(Node):
 
 
     def _align_with_dropoff(self):
-        self._tracking_active_pub.publish(Bool(data=False))
         if self._checkpoint_pos is None:
             self._checkpoint_pos = list(self._robot_pos)  # capture position on first entry
 
@@ -224,7 +242,6 @@ class FinalChallengeNode(Node):
             self._cmd_vel_pub.publish(cmd_msg)
 
     def _release_block(self):
-        self._tracking_active_pub.publish(Bool(data=False))
         cmd_msg = Twist()
         grip_msg = Float64()
         grip_msg.data = 0.0
@@ -240,7 +257,6 @@ class FinalChallengeNode(Node):
 
 
     def _go_to_block(self):
-        self._tracking_active_pub.publish(Bool(data=True))
         if not self._waypoints:
             targets = self._blocks.get(self._current_color, [])
             if not targets:
@@ -267,7 +283,6 @@ class FinalChallengeNode(Node):
         self._follow_waypoints(next_state='align with block')
 
     def _go_to_dropoff(self):
-        self._tracking_active_pub.publish(Bool(data=False))
         self._target_block_pos = None  # no facing step after dropoff path
         if not self._waypoints:
             if self._current_color == 'red':
@@ -305,6 +320,7 @@ class FinalChallengeNode(Node):
                     return  # keep rotating until aligned
             self._waypoints = []
             self._current_state = next_state
+
             self._checkpoint_pos = self._robot_pos
             self._cmd_vel_pub.publish(Twist())  # stop
             return

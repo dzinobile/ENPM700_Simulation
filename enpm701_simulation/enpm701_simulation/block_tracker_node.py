@@ -8,14 +8,11 @@ from std_msgs.msg import Bool, Float64
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Pose2D
 
-
+CONSTRUCTION_X = (-1.524, -0.3048)
+CONSTRUCTION_Y = (0.3048, 1.524)
 CLUSTER_THRESHOLD = 0.3  # metres — detections within this radius merge into one cluster
 CONFIRM_FRAMES = 10      # consecutive frames a detection must be stable before counting
 EDGE_MARGIN = 40         # pixels — centroids closer than this to any edge are skipped
-
-# Construction zone — estimated block positions inside this rectangle are ignored
-CONSTRUCTION_X = (-1.524, -0.3048)  # (min_x, max_x)
-CONSTRUCTION_Y = (0.3048,  1.524)   # (min_y, max_y)
 
 BOUNDS = {
     'red':   {'lower': np.array([171, 145, 47]), 'upper': np.array([255, 255, 255]),
@@ -165,10 +162,9 @@ class BlockTracker(Node):
         clusters = self._block_positions[color]
         if not clusters:
             return
-        nearest = min(clusters, key=lambda c: np.hypot(x - c['x_sum']/c['count'],
-                                                        y - c['y_sum']/c['count']))
+        nearest = min(clusters, key=lambda c: np.hypot(x - c['x_sum'] / c['count'],
+                                                        y - c['y_sum'] / c['count']))
         clusters.remove(nearest)
-        # also drop any candidates near the same spot
         self._candidates[color] = [
             c for c in self._candidates[color]
             if np.hypot(x - c['x'], y - c['y']) > CLUSTER_THRESHOLD
@@ -181,7 +177,8 @@ class BlockTracker(Node):
         return pixel_x, pixel_y
 
     def publish_map(self, block_positions):
-        map_img = np.full((500, 500, 3), 255, dtype=np.uint8)
+        # map_img = np.full((500, 500, 3), 255, dtype=np.uint8)
+        map_img = np.zeros((500, 500, 3), dtype=np.uint8)
         robot_x, robot_y = self.xy_to_pixel(self._robot_pos[0], self._robot_pos[1])
         cv2.rectangle(map_img, (0, 0), (199, 200), (100, 100, 100), -1)
         cv2.rectangle(map_img, (0, 500), (100, 400), (100, 100, 100), -1)
@@ -196,59 +193,59 @@ class BlockTracker(Node):
     def _callback(self, ros_img):
         
         self.update_position()
-        if self._tracker_active:
-            cv_img = self._bridge.imgmsg_to_cv2(ros_img)
-            hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
-            color_bgr = {'red': (0, 0, 255), 'green': (0, 255, 0), 'blue': (255, 0, 0)}
+        cv_img = self._bridge.imgmsg_to_cv2(ros_img)
+        hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
+        color_bgr = {'red': (0, 0, 255), 'green': (0, 255, 0), 'blue': (255, 0, 0)}
 
-            for color in ['red', 'green', 'blue']:
-                b = BOUNDS[color]
-                bgr = color_bgr[color]
-                if color == 'red':
-                    mask = cv2.bitwise_or(
-                        cv2.inRange(hsv, b['lower'], b['upper']),
-                        cv2.inRange(hsv, b['lower2'], b['upper2'])
-                    )
+        for color in ['red', 'green', 'blue']:
+            b = BOUNDS[color]
+            bgr = color_bgr[color]
+            if color == 'red':
+                mask = cv2.bitwise_or(
+                    cv2.inRange(hsv, b['lower'], b['upper']),
+                    cv2.inRange(hsv, b['lower2'], b['upper2'])
+                )
+            else:
+                mask = cv2.inRange(hsv, b['lower'], b['upper'])
+
+            # Collect valid detections for this color this frame
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            frame_detections = []  # (rect, rect_x, rect_h, raw_x, raw_y)
+            for i in range(min(3, len(contours))):
+                rect = cv2.minAreaRect(contours[i])
+                (rect_x, rect_y), (rect_w, rect_h), rect_a = rect
+                if rect_a > 25:
+                    if rect_w > rect_h:
+                        rect_w, rect_h = rect_h, rect_w
+                    if (rect_x < EDGE_MARGIN or rect_x > 640 - EDGE_MARGIN or
+                            rect_y < EDGE_MARGIN or rect_y > 480 - EDGE_MARGIN):
+                        continue  # centroid too close to edge — block likely partially out of frame
+                    raw_x, raw_y = self.estimate_block_position(rect_x, rect_h)
+                    if (CONSTRUCTION_X[0] <= raw_x <= CONSTRUCTION_X[1] and
+                            CONSTRUCTION_Y[0] <= raw_y <= CONSTRUCTION_Y[1]):
+                        continue  # block in construction zone — ignore
+                    frame_detections.append((rect, rect_x, rect_h, raw_x, raw_y))
+
+            # Match each candidate to the nearest unmatched detection this frame.
+            # Unmatched candidates lose their streak and are dropped.
+            claimed = set()
+            for cand in self._candidates[color]:
+                best_di, best_dist = None, float('inf')
+                for di, (_, _, _, raw_x, raw_y) in enumerate(frame_detections):
+                    if di in claimed:
+                        continue
+                    d = np.hypot(raw_x - cand['x'], raw_y - cand['y'])
+                    if d < best_dist:
+                        best_di, best_dist = di, d
+                if best_di is not None and best_dist < CLUSTER_THRESHOLD:
+                    _, _, _, raw_x, raw_y = frame_detections[best_di]
+                    cand['x'], cand['y'] = raw_x, raw_y
+                    cand['streak'] += 1
+                    claimed.add(best_di)
                 else:
-                    mask = cv2.inRange(hsv, b['lower'], b['upper'])
+                    cand['streak'] = 0  # missed this frame — reset
 
-                # Collect valid detections for this color this frame
-                contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                frame_detections = []  # (rect, rect_x, rect_h, raw_x, raw_y)
-                for i in range(min(3, len(contours))):
-                    rect = cv2.minAreaRect(contours[i])
-                    (rect_x, rect_y), (rect_w, rect_h), rect_a = rect
-                    if rect_a > 25:
-                        if rect_w > rect_h:
-                            rect_w, rect_h = rect_h, rect_w
-                        if (rect_x < EDGE_MARGIN or rect_x > 640 - EDGE_MARGIN or
-                                rect_y < EDGE_MARGIN or rect_y > 480 - EDGE_MARGIN):
-                            continue  # centroid too close to edge — block likely partially out of frame
-                        raw_x, raw_y = self.estimate_block_position(rect_x, rect_h)
-                        if (CONSTRUCTION_X[0] <= raw_x <= CONSTRUCTION_X[1] and
-                                CONSTRUCTION_Y[0] <= raw_y <= CONSTRUCTION_Y[1]):
-                            continue  # projected position inside construction zone
-                        frame_detections.append((rect, rect_x, rect_h, raw_x, raw_y))
-
-                # Match each candidate to the nearest unmatched detection this frame.
-                # Unmatched candidates lose their streak and are dropped.
-                claimed = set()
-                for cand in self._candidates[color]:
-                    best_di, best_dist = None, float('inf')
-                    for di, (_, _, _, raw_x, raw_y) in enumerate(frame_detections):
-                        if di in claimed:
-                            continue
-                        d = np.hypot(raw_x - cand['x'], raw_y - cand['y'])
-                        if d < best_dist:
-                            best_di, best_dist = di, d
-                    if best_di is not None and best_dist < CLUSTER_THRESHOLD:
-                        _, _, _, raw_x, raw_y = frame_detections[best_di]
-                        cand['x'], cand['y'] = raw_x, raw_y
-                        cand['streak'] += 1
-                        claimed.add(best_di)
-                    else:
-                        cand['streak'] = 0  # missed this frame — reset
-
+            if self._tracker_active:
                 self._candidates[color] = [c for c in self._candidates[color] if c['streak'] > 0]
 
                 # Unmatched detections start new candidates
@@ -261,42 +258,42 @@ class BlockTracker(Node):
                     if cand['streak'] >= CONFIRM_FRAMES:
                         self.update_block_position(color, cand['x'], cand['y'])
 
-                # Draw all detections; show streak for pending, cluster avg for confirmed
-                for rect, rect_x, rect_h, raw_x, raw_y in frame_detections:
-                    (rect_cx, rect_cy), _, _ = rect
-                    centroid = (int(rect_cx), int(rect_cy))
-                    cv_img = cv2.drawContours(cv_img, [np.int0(cv2.boxPoints(rect))], 0, bgr, 1)
-                    cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
+            # Draw all detections; show streak for pending, cluster avg for confirmed
+            for rect, rect_x, rect_h, raw_x, raw_y in frame_detections:
+                (rect_cx, rect_cy), _, _ = rect
+                centroid = (int(rect_cx), int(rect_cy))
+                cv_img = cv2.drawContours(cv_img, [np.int0(cv2.boxPoints(rect))], 0, bgr, 1)
+                cv2.circle(cv_img, centroid, 3, (0, 0, 0), -1)
 
-                    # find the candidate this detection belongs to (nearest)
-                    cand = min(self._candidates[color],
-                            key=lambda c: np.hypot(raw_x - c['x'], raw_y - c['y']),
-                            default=None)
-                    if cand is not None and cand['streak'] >= CONFIRM_FRAMES and self._block_positions[color]:
-                        nearest = min(
-                            self._block_positions[color],
-                            key=lambda cl: np.hypot(raw_x - cl['x_sum'] / cl['count'],
-                                                    raw_y - cl['y_sum'] / cl['count'])
-                        )
-                        avg_x = nearest['x_sum'] / nearest['count']
-                        avg_y = nearest['y_sum'] / nearest['count']
-                        cv2.putText(cv_img, f"{color} ({avg_x:.2f},{avg_y:.2f}) n={nearest['count']}",
-                                    (centroid[0] + 5, centroid[1] - 5),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
-                    elif cand is not None:
-                        cv2.putText(cv_img, f"{color} streak={cand['streak']}/{CONFIRM_FRAMES}",
-                                    (centroid[0] + 5, centroid[1] - 5),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (128, 128, 128), 1)
+                # find the candidate this detection belongs to (nearest)
+                cand = min(self._candidates[color],
+                        key=lambda c: np.hypot(raw_x - c['x'], raw_y - c['y']),
+                        default=None)
+                if cand is not None and cand['streak'] >= CONFIRM_FRAMES and self._block_positions[color]:
+                    nearest = min(
+                        self._block_positions[color],
+                        key=lambda cl: np.hypot(raw_x - cl['x_sum'] / cl['count'],
+                                                raw_y - cl['y_sum'] / cl['count'])
+                    )
+                    avg_x = nearest['x_sum'] / nearest['count']
+                    avg_y = nearest['y_sum'] / nearest['count']
+                    cv2.putText(cv_img, f"{color} ({avg_x:.2f},{avg_y:.2f}) n={nearest['count']}",
+                                (centroid[0] + 5, centroid[1] - 5),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+                elif cand is not None:
+                    cv2.putText(cv_img, f"{color} streak={cand['streak']}/{CONFIRM_FRAMES}",
+                                (centroid[0] + 5, centroid[1] - 5),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (128, 128, 128), 1)
 
-            # publish camera image and map from all averaged clusters
-            map_positions = [
-                (color_bgr[color], cl['x_sum'] / cl['count'], cl['y_sum'] / cl['count'])
-                for color, clusters in self._block_positions.items()
-                for cl in clusters
-            ]
-            self._image_pub.publish(self._bridge.cv2_to_imgmsg(cv_img))
-            self.publish_map(map_positions)
-            self.publish_marker_array(map_positions)
+        # publish camera image and map from all averaged clusters
+        map_positions = [
+            (color_bgr[color], cl['x_sum'] / cl['count'], cl['y_sum'] / cl['count'])
+            for color, clusters in self._block_positions.items()
+            for cl in clusters
+        ]
+        self._image_pub.publish(self._bridge.cv2_to_imgmsg(cv_img))
+        self.publish_map(map_positions)
+        self.publish_marker_array(map_positions)
 
 
 def main(args=None):

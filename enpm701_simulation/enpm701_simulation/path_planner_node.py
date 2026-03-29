@@ -14,7 +14,7 @@ import numpy as np
 
 # Arena is 3.048 x 3.048 m, centred at origin
 ARENA_SIZE = 3.048
-RESOLUTION = 0.05                            # metres per grid cell
+RESOLUTION = 0.01                            # metres per grid cell
 GRID_N = int(ARENA_SIZE / RESOLUTION)        # 60 cells
 ORIGIN = -ARENA_SIZE / 2.0                   # -1.524 m
 
