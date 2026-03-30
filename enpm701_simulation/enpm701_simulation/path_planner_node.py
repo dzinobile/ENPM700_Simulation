@@ -18,7 +18,7 @@ RESOLUTION = 0.01                            # metres per grid cell
 GRID_N = int(ARENA_SIZE / RESOLUTION)        # 60 cells
 ORIGIN = -ARENA_SIZE / 2.0                   # -1.524 m
 
-INFLATE_RADIUS = 3   # cells — inflates obstacles by ~15 cm (robot half-width)
+INFLATE_RADIUS = 15   # cells — inflates obstacles by ~15 cm (robot half-width)
 
 
 def world_to_cell(x, y):

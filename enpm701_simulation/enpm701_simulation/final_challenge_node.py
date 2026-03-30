@@ -54,6 +54,7 @@ class FinalChallengeNode(Node):
         self._blocks = {'red': [], 'green': [], 'blue': []}
         self._waypoints = []   # list of (x, y) world coords for current path
         self._waypoint_idx = 0
+        self._planning = False
 
     def _position_cb(self, msg):
         self._robot_pos = [msg.x, msg.y, msg.theta]
@@ -285,6 +286,10 @@ class FinalChallengeNode(Node):
     def _go_to_dropoff(self):
         self._target_block_pos = None  # no facing step after dropoff path
         if not self._waypoints:
+            if self._planning:
+                return 
+            self._planning = True
+
             if self._current_color == 'red':
                 goal_x = -1.2192
             elif self._current_color == 'green':
@@ -294,6 +299,7 @@ class FinalChallengeNode(Node):
             goal_y = 0.6096
 
             poses = self.request_path(goal_x, goal_y)
+            self._planning = False
             if not poses:
                 return
             self._waypoints = [(p.pose.position.x, p.pose.position.y) for p in poses]
