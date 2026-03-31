@@ -10,7 +10,7 @@ from geometry_msgs.msg import Pose2D
 
 CONSTRUCTION_X = (-1.524, -0.3048)
 CONSTRUCTION_Y = (0.3048, 1.524)
-CLUSTER_THRESHOLD = 0.3  # metres — detections within this radius merge into one cluster
+CLUSTER_THRESHOLD = 0.6  # metres — detections within this radius merge into one cluster
 CONFIRM_FRAMES = 10      # consecutive frames a detection must be stable before counting
 EDGE_MARGIN = 40         # pixels — centroids closer than this to any edge are skipped
 
@@ -224,7 +224,12 @@ class BlockTracker(Node):
                     if (CONSTRUCTION_X[0] <= raw_x <= CONSTRUCTION_X[1] and
                             CONSTRUCTION_Y[0] <= raw_y <= CONSTRUCTION_Y[1]):
                         continue  # block in construction zone — ignore
+                    if raw_x < -1.524 or raw_x > 1.524 or raw_y < -1.524 or raw_y > 1.524:
+                        continue  # block outside arena bounds — ignore
                     frame_detections.append((rect, rect_x, rect_h, raw_x, raw_y))
+
+            if not self._tracker_active:
+                continue  # tracking paused — skip candidate updates entirely
 
             # Match each candidate to the nearest unmatched detection this frame.
             # Unmatched candidates lose their streak and are dropped.
@@ -245,13 +250,12 @@ class BlockTracker(Node):
                 else:
                     cand['streak'] = 0  # missed this frame — reset
 
-            if self._tracker_active:
-                self._candidates[color] = [c for c in self._candidates[color] if c['streak'] > 0]
+            self._candidates[color] = [c for c in self._candidates[color] if c['streak'] > 0]
 
-                # Unmatched detections start new candidates
-                for di, (_, _, _, raw_x, raw_y) in enumerate(frame_detections):
-                    if di not in claimed:
-                        self._candidates[color].append({'x': raw_x, 'y': raw_y, 'streak': 1})
+            # Unmatched detections start new candidates
+            for di, (_, _, _, raw_x, raw_y) in enumerate(frame_detections):
+                if di not in claimed:
+                    self._candidates[color].append({'x': raw_x, 'y': raw_y, 'streak': 1})
 
                 # Confirmed candidates (streak >= CONFIRM_FRAMES) update the cluster average
                 for cand in self._candidates[color]:

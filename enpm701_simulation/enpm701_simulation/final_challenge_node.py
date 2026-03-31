@@ -41,7 +41,7 @@ class FinalChallengeNode(Node):
 
         self._robot_pos = [-1.2192, -1.2192, 0.0]
         self._linear_speed = 0.5
-        self._angular_speed = 2.0
+        self._angular_speed = 1.5
         self._bridge = CvBridge()
         self._current_state = "scan for blocks"
         self._color_cycle = itertools.cycle(['red', 'green', 'blue'])
@@ -147,6 +147,7 @@ class FinalChallengeNode(Node):
         cmd_msg = Twist()
         if abs(self._robot_pos[1] - self._checkpoint_pos[1]) >= 0.3048:
             self._current_state = "scan for blocks"
+            self._checkpoint_pos = self._robot_pos
             cmd_msg.linear.x = 0.0
             cmd_msg.angular.z = 0.0
             self._cmd_vel_pub.publish(cmd_msg)
@@ -245,37 +246,46 @@ class FinalChallengeNode(Node):
     def _release_block(self):
         cmd_msg = Twist()
         grip_msg = Float64()
-        grip_msg.data = 0.0
         cmd_msg.linear.x = 0.0
         cmd_msg.angular.z = 0.0
         self._cmd_vel_pub.publish(cmd_msg)
         self._grip_pub.publish(grip_msg)
-        if (self.get_clock().now() - self._checkpoint_time).nanoseconds * 1e-9 > 1.0:
-
-            
+        if (self.get_clock().now() - self._checkpoint_time).nanoseconds * 1e-9 < 1.0:
+            grip_msg.data = 0.03
+            self._grip_pub.publish(grip_msg)
+        elif 1.0 <=(self.get_clock().now() - self._checkpoint_time).nanoseconds * 1e-9 < 2.0:
+            grip_msg.data = 0.0
+            self._grip_pub.publish(grip_msg)
+        else:  
+            grip_msg.data = 0.0
+            self._grip_pub.publish(grip_msg)
             self._checkpoint_pos = self._robot_pos
             self._current_state = "back away from dropoff"
 
 
     def _go_to_block(self):
         if not self._waypoints:
+            if self._planning:
+                return
+            self._planning = True
+
             targets = self._blocks.get(self._current_color, [])
             if not targets:
+                self._planning = False
                 self._current_state = "scan for blocks"
-                return  # no confirmed block yet — stay in state
+                return
 
-            # pick nearest block of current color
             rx, ry = self._robot_pos[0], self._robot_pos[1]
             bx, by = min(targets, key=lambda p: np.hypot(p[0] - rx, p[1] - ry))
             self._target_block_pos = (bx, by)
 
-            # approach point: 0.3048 m from block along the robot→block axis
             dx, dy = rx - bx, ry - by
             dist = max(np.hypot(dx, dy), 1e-6)
             ax = bx + (dx / dist) * 0.3048
             ay = by + (dy / dist) * 0.3048
 
             poses = self.request_path(ax, ay)
+            self._planning = False
             if not poses:
                 return
             self._waypoints = [(p.pose.position.x, p.pose.position.y) for p in poses]
@@ -326,7 +336,7 @@ class FinalChallengeNode(Node):
                     return  # keep rotating until aligned
             self._waypoints = []
             self._current_state = next_state
-
+            
             self._checkpoint_pos = self._robot_pos
             self._cmd_vel_pub.publish(Twist())  # stop
             return
