@@ -32,7 +32,6 @@ setup(
         'console_scripts': [
             'my_robot_driver = enpm701_simulation.my_robot_driver:main',
             'teleop_node = enpm701_simulation.teleop_node:main',
-            'basic_autonomy_node = enpm701_simulation.basic_autonomy_node:main',
             'colorpicker_node = enpm701_simulation.colorpicker_node:main',
             'boundingboxes_node = enpm701_simulation.boundingboxes_node:main',
             'distance_calibration_node = enpm701_simulation.distance_calibration_node:main',
