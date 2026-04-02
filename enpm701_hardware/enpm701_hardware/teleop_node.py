@@ -15,7 +15,7 @@ GR = 16  # gripper
 PWM_FREQ = 50
 DRIVE_DUTY = int(round(0.5 * 255))        # 50% duty cycle for driving
 GRIPPER_OPEN = int(round(0.085 * 255))    # ~22 — tune if needed
-GRIPPER_CLOSED = int(round(0.04 * 255))   # ~13 — tune if needed
+GRIPPER_CLOSED = int(round(0.045 * 255))   # ~13 — tune if needed
 
 HELP = """
 Controls:
