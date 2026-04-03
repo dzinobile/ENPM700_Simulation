@@ -4,18 +4,10 @@ import termios
 import rclpy
 from rclpy.node import Node
 import pigpio
+from std_msgs.msg import Bool
+from geometry_msgs.msg import Twist
 
-# GPIO pins
-LF = 6   # left forward
-LB = 13  # left backward
-RB = 19  # right backward
-RF = 26  # right forward
-GR = 16  # gripper
 
-PWM_FREQ = 50
-DRIVE_DUTY = int(round(0.5 * 255))        # 50% duty cycle for driving
-GRIPPER_OPEN = int(round(0.085 * 255))    # ~22 — tune if needed
-GRIPPER_CLOSED = int(round(0.045 * 255))   # ~13 — tune if needed
 
 HELP = """
 Controls:
@@ -37,57 +29,34 @@ def get_key(settings):
 class TeleopNode(Node):
     def __init__(self):
         super().__init__('teleop_node')
-        self._pi = pigpio.pi()
-        if not self._pi.connected:
-            raise RuntimeError('Could not connect to pigpio daemon. Is pigpiod running?')
-
-        for pin in (LF, LB, RB, RF, GR):
-            self._pi.set_mode(pin, pigpio.OUTPUT)
-            self._pi.set_PWM_frequency(pin, PWM_FREQ)
-            self._pi.set_PWM_dutycycle(pin, 0)
-
-        # Start with gripper open
-        self._pi.set_PWM_dutycycle(GR, GRIPPER_OPEN)
+        self._cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self._cmd_grip_pub = self.create_publisher(Bool, 'gripper_cmd', 10)
         self._grip_closed = False
 
+
     def drive(self, linear, angular):
-        """
-        linear  > 0 : forward
-        linear  < 0 : backward
-        angular > 0 : turn left  (right wheel forward, left wheel back)
-        angular < 0 : turn right (left wheel forward, right wheel back)
-        """
-        lf = lb = rf = rb = 0
-
-        if linear > 0:
-            lf = rf = DRIVE_DUTY
-        elif linear < 0:
-            lb = rb = DRIVE_DUTY
-        elif angular > 0:   # turn left in place
-            rf = DRIVE_DUTY
-            lb = DRIVE_DUTY
-        elif angular < 0:   # turn right in place
-            lf = DRIVE_DUTY
-            rb = DRIVE_DUTY
-
-        self._pi.set_PWM_dutycycle(LF, lf)
-        self._pi.set_PWM_dutycycle(LB, lb)
-        self._pi.set_PWM_dutycycle(RB, rb)
-        self._pi.set_PWM_dutycycle(RF, rf)
+        msg = Twist()
+        msg.linear.x = linear
+        msg.angular.z = angular
+        self._cmd_vel_pub.publish(msg)
 
     def stop(self):
-        for pin in (LF, LB, RB, RF):
-            self._pi.set_PWM_dutycycle(pin, 0)
+        msg = Twist()
+        grip_msg = Bool()
+        msg.linear.x = 0.0
+        msg.angular.z = 0.0
+        grip_msg.data = False
+        self._cmd_vel_pub.publish(msg)
+        self._cmd_grip_pub.publish(grip_msg)
 
     def toggle_gripper(self):
         self._grip_closed = not self._grip_closed
-        duty = GRIPPER_CLOSED if self._grip_closed else GRIPPER_OPEN
-        self._pi.set_PWM_dutycycle(GR, duty)
+        msg = Bool()
+        msg.data = self._grip_closed
+        self._cmd_grip_pub.publish(msg)
 
     def shutdown(self):
         self.stop()
-        self._pi.set_PWM_dutycycle(GR, GRIPPER_OPEN)
-        self._pi.stop()
 
 
 def main(args=None):
@@ -102,13 +71,13 @@ def main(args=None):
             key = get_key(settings)
 
             if key == 'w':
-                node.drive(1, 0)
+                node.drive(0.5, 0)
             elif key == 's':
-                node.drive(-1, 0)
+                node.drive(-0.5, 0)
             elif key == 'a':
-                node.drive(0, 1)
+                node.drive(0, 0.5)
             elif key == 'd':
-                node.drive(0, -1)
+                node.drive(0, -0.5)
             elif key == ' ':
                 node.stop()
             elif key == 'g':
