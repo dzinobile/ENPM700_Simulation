@@ -71,13 +71,13 @@ def main(args=None):
             key = get_key(settings)
 
             if key == 'w':
-                node.drive(0.5, 0)
+                node.drive(0.5, 0.0)
             elif key == 's':
-                node.drive(-0.5, 0)
+                node.drive(-0.5, 0.0)
             elif key == 'a':
-                node.drive(0, 0.5)
+                node.drive(0.0, 0.5)
             elif key == 'd':
-                node.drive(0, -0.5)
+                node.drive(0.0, -0.5)
             elif key == ' ':
                 node.stop()
             elif key == 'g':

@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'colorpicker_node = enpm701_hardware.colorpicker_node:main',
             'teleop_node = enpm701_hardware.teleop_node:main',
-        ],
+            'driver_node = enpm701_hardware.driver_node:main',
+],
     },
 )
